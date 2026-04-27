@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IEC 62443-4-1 Practice 구조도</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --purple-50: #EEEDFE; --purple-200: #AFA9EC; --purple-600: #534AB7; --purple-800: #3C3489;
+    --teal-50: #E1F5EE;   --teal-200: #5DCAA5;   --teal-600: #0F6E56;   --teal-800: #085041;
+    --coral-50: #FAECE7;  --coral-200: #F0997B;  --coral-600: #993C1D;  --coral-800: #712B13;
+    --gray-50: #F6F5F0;   --gray-100: #ECEAE3;   --gray-400: #888780;   --gray-700: #444441;  --gray-900: #1a1a18;
+    --line: #6B6A64;
+  }
+
+  body {
+    font-family: 'Noto Sans KR', sans-serif;
+    background: #F6F5F0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 24px 60px;
+    color: var(--gray-900);
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 36px;
+  }
+  header .label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    color: var(--gray-400);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  header h1 {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--gray-900);
+    line-height: 1.3;
+  }
+  header p {
+    margin-top: 8px;
+    font-size: 13px;
+    color: var(--gray-400);
+  }
+
+  .diagram {
+    width: 100%;
+    max-width: 780px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    align-items: center;
+  }
+
+  /* SM 베이스먼트 */
+  .sm-box {
+    width: 100%;
+    background: var(--purple-50);
+    border: 1.5px solid var(--purple-200);
+    border-radius: 12px;
+    padding: 18px 28px;
+    cursor: pointer;
+    transition: box-shadow .18s, transform .14s;
+    position: relative;
+  }
+  .sm-box:hover { box-shadow: 0 4px 18px rgba(83,74,183,.18); transform: translateY(-2px); }
+  .sm-box .tag {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: .1em;
+    color: var(--purple-600);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .sm-box .title { font-size: 16px; font-weight: 700; color: var(--purple-800); }
+  .sm-box .sub { font-size: 12px; color: var(--purple-600); margin-top: 3px; }
+  .sm-box .click-hint {
+    position: absolute; right: 18px; top: 50%; transform: translateY(-50%);
+    font-size: 11px; color: var(--purple-200);
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  /* 연결선 영역 */
+  .connector-row {
+    width: 100%;
+    max-width: 780px;
+    height: 48px;
+    position: relative;
+  }
+  .connector-row svg { width: 100%; height: 100%; overflow: visible; }
+
+  /* Practice 박스 행 */
+  .practice-row {
+    width: 100%;
+    display: grid;
+    gap: 12px;
+  }
+  .practice-row.top { grid-template-columns: repeat(4, 1fr); }
+  .practice-row.bottom { grid-template-columns: repeat(3, 1fr); max-width: 590px; }
+
+  .divider {
+    width: 100%;
+    max-width: 780px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 8px 0;
+  }
+  .divider-line { flex: 1; height: 1px; background: #C8C6BE; border: none; }
+  .divider-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--gray-400);
+    letter-spacing: .08em;
+    white-space: nowrap;
+  }
+
+  .p-box {
+    background: white;
+    border-radius: 10px;
+    padding: 14px 12px 12px;
+    cursor: pointer;
+    transition: box-shadow .18s, transform .14s;
+    border: 1.5px solid transparent;
+    text-align: center;
+  }
+  .p-box:hover { transform: translateY(-2px); }
+
+  .p-box.teal {
+    background: var(--teal-50);
+    border-color: var(--teal-200);
+  }
+  .p-box.teal:hover { box-shadow: 0 4px 14px rgba(15,110,86,.16); }
+  .p-box.teal .p-code { color: var(--teal-600); }
+  .p-box.teal .p-title { color: var(--teal-800); }
+  .p-box.teal .p-sub { color: var(--teal-600); }
+
+  .p-box.coral {
+    background: var(--coral-50);
+    border-color: var(--coral-200);
+  }
+  .p-box.coral:hover { box-shadow: 0 4px 14px rgba(153,60,29,.16); }
+  .p-box.coral .p-code { color: var(--coral-600); }
+  .p-box.coral .p-title { color: var(--coral-800); }
+  .p-box.coral .p-sub { color: var(--coral-600); }
+
+  .p-code {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  .p-title { font-size: 12px; font-weight: 700; margin-bottom: 3px; line-height: 1.35; }
+  .p-sub { font-size: 11px; line-height: 1.4; }
+
+  /* 범례 */
+  .legend {
+    display: flex; gap: 20px; margin-top: 24px; flex-wrap: wrap; justify-content: center;
+  }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--gray-400); }
+  .legend-dot { width: 12px; height: 12px; border-radius: 3px; }
+  .legend-dot.purple { background: var(--purple-200); }
+  .legend-dot.teal { background: var(--teal-200); }
+  .legend-dot.coral { background: var(--coral-200); }
+
+  /* 모달 */
+  .modal-backdrop {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(26,26,24,.55);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .modal-backdrop.open { display: flex; }
+
+  .modal {
+    background: white;
+    border-radius: 16px;
+    width: 100%;
+    max-width: 540px;
+    max-height: 85vh;
+    overflow-y: auto;
+    box-shadow: 0 24px 60px rgba(0,0,0,.22);
+    animation: modalIn .2s ease;
+  }
+  @keyframes modalIn { from { opacity:0; transform: scale(.96) translateY(8px); } to { opacity:1; transform: none; } }
+
+  .modal-header {
+    padding: 24px 24px 16px;
+    border-bottom: 1px solid var(--gray-100);
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    position: sticky; top: 0; background: white; border-radius: 16px 16px 0 0; z-index: 1;
+  }
+  .modal-header-left .modal-tag {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .modal-header-left .modal-title { font-size: 18px; font-weight: 700; }
+  .modal-close {
+    background: var(--gray-100);
+    border: none;
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 16px;
+    color: var(--gray-400);
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    transition: background .15s;
+  }
+  .modal-close:hover { background: #DDDBD3; }
+
+  .modal-body { padding: 20px 24px 28px; }
+  .modal-body .section { margin-bottom: 20px; }
+  .modal-body .section:last-child { margin-bottom: 0; }
+  .modal-body .section-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--gray-400);
+    margin-bottom: 10px;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  .modal-body .desc {
+    font-size: 14px;
+    line-height: 1.75;
+    color: #2C2C2A;
+  }
+  .item-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+  .item-list li {
+    display: flex;
+    gap: 10px;
+    font-size: 13px;
+    line-height: 1.6;
+    color: #3d3d3a;
+  }
+  .item-list li .item-code {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    margin-top: 2px;
+    height: fit-content;
+  }
+  .chip {
+    display: inline-block;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-weight: 600;
+    margin-right: 4px;
+    margin-bottom: 4px;
+  }
+  .chips { margin-bottom: 4px; }
+  .tip-box {
+    background: var(--gray-50);
+    border-left: 3px solid var(--gray-100);
+    border-radius: 0 6px 6px 0;
+    padding: 10px 14px;
+    font-size: 13px;
+    line-height: 1.65;
+    color: var(--gray-700);
+    margin-top: 10px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="label">IEC 62443-4-1</div>
+  <h1>제품 보안 개발 생애주기 — Practice 구조</h1>
+  <p>각 박스를 클릭하면 상세 설명을 확인할 수 있습니다</p>
+</header>
+
+<div class="diagram">
+
+  <!-- SM 베이스먼트 -->
+  <div class="sm-box" onclick="openModal('sm')">
+    <div class="tag">Practice 1 · 베이스먼트</div>
+    <div class="title">SM — 보안 관리 (Security Management)</div>
+    <div class="sub">모든 Practice의 토대 · 정책 · 절차 · 문서화 체계</div>
+    <span class="click-hint">클릭하여 상세 보기 →</span>
+  </div>
+
+  <!-- 연결선: SM → 상단 4개 -->
+  <div class="connector-row" style="max-width:780px;">
+    <svg viewBox="0 0 780 48" preserveAspectRatio="none">
+      <defs>
+        <marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+          <path d="M2 1L8 5L2 9" fill="none" stroke="#6B6A64" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </marker>
+        <marker id="ah2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+          <path d="M2 1L8 5L2 9" fill="none" stroke="#B4B2A9" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </marker>
+      </defs>
+      <!-- 실선: SR SD SI SVV -->
+      <line x1="100" y1="0" x2="100" y2="40" stroke="#6B6A64" stroke-width="1.5" marker-end="url(#ah)"/>
+      <line x1="290" y1="0" x2="290" y2="40" stroke="#6B6A64" stroke-width="1.5" marker-end="url(#ah)"/>
+      <line x1="490" y1="0" x2="490" y2="40" stroke="#6B6A64" stroke-width="1.5" marker-end="url(#ah)"/>
+      <line x1="680" y1="0" x2="680" y2="40" stroke="#6B6A64" stroke-width="1.5" marker-end="url(#ah)"/>
+    </svg>
+  </div>
+
+  <!-- 상단 4개 박스 -->
+  <div class="practice-row top" style="max-width:780px;">
+    <div class="p-box teal" onclick="openModal('sr')">
+      <div class="p-code">SR</div>
+      <div class="p-title">보안 요구사항 명세</div>
+      <div class="p-sub">위협 모델링 · 문서화</div>
+    </div>
+    <div class="p-box teal" onclick="openModal('sd')">
+      <div class="p-code">SD</div>
+      <div class="p-title">안전한 설계</div>
+      <div class="p-sub">심층 방어 · 아키텍처</div>
+    </div>
+    <div class="p-box teal" onclick="openModal('si')">
+      <div class="p-code">SI</div>
+      <div class="p-title">안전한 구현</div>
+      <div class="p-sub">시큐어 코딩 · 리뷰</div>
+    </div>
+    <div class="p-box teal" onclick="openModal('svv')">
+      <div class="p-code">SVV</div>
+      <div class="p-title">보안 검증 · 확인</div>
+      <div class="p-sub">테스트 · 침투 · 스캔</div>
+    </div>
+  </div>
+
+  <!-- 구분선 -->
+  <div class="divider" style="max-width:780px; margin-top:20px;">
+    <hr class="divider-line">
+    <span class="divider-label">배포 후 유지관리 단계</span>
+    <hr class="divider-line">
+  </div>
+
+  <!-- 연결선: SM → 하단 3개 (점선) -->
+  <div class="connector-row" style="max-width:590px;">
+    <svg viewBox="0 0 590 40" preserveAspectRatio="none">
+      <line x1="98" y1="0" x2="98" y2="32" stroke="#B4B2A9" stroke-width="1.4" stroke-dasharray="4 3" marker-end="url(#ah2)"/>
+      <line x1="295" y1="0" x2="295" y2="32" stroke="#B4B2A9" stroke-width="1.4" stroke-dasharray="4 3" marker-end="url(#ah2)"/>
+      <line x1="492" y1="0" x2="492" y2="32" stroke="#B4B2A9" stroke-width="1.4" stroke-dasharray="4 3" marker-end="url(#ah2)"/>
+    </svg>
+  </div>
+
+  <!-- 하단 3개 박스 -->
+  <div class="practice-row bottom">
+    <div class="p-box coral" onclick="openModal('dm')">
+      <div class="p-code">DM</div>
+      <div class="p-title">보안 문제 관리</div>
+      <div class="p-sub">취약점 · 통지 · 처리</div>
+    </div>
+    <div class="p-box coral" onclick="openModal('sum')">
+      <div class="p-code">SUM</div>
+      <div class="p-title">보안 업데이트 관리</div>
+      <div class="p-sub">패치 · 배포 · 검증</div>
+    </div>
+    <div class="p-box coral" onclick="openModal('sg')">
+      <div class="p-code">SG</div>
+      <div class="p-title">보안 가이드라인</div>
+      <div class="p-sub">운영 · 강화 · 폐기</div>
+    </div>
+  </div>
+
+  <!-- 범례 -->
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot purple"></div>기반 (베이스먼트)</div>
+    <div class="legend-item"><div class="legend-dot teal"></div>개발 단계 Practice (실선)</div>
+    <div class="legend-item"><div class="legend-dot coral"></div>배포 후 Practice (점선)</div>
+  </div>
+
+</div>
+
+<!-- 모달 -->
+<div class="modal-backdrop" id="modal-backdrop" onclick="closeOnBackdrop(event)">
+  <div class="modal" id="modal">
+    <div class="modal-header">
+      <div class="modal-header-left">
+        <div class="modal-tag" id="modal-tag"></div>
+        <div class="modal-title" id="modal-title"></div>
+      </div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+  </div>
+</div>
+
+<script>
+const data = {
+  sm: {
+    tag: "Practice 1 · 베이스먼트",
+    title: "SM — 보안 관리 (Security Management)",
+    color: "#534AB7",
+    sections: [
+      {
+        title: "역할",
+        type: "desc",
+        content: "SM은 IEC 62443-4-1 전체의 토대입니다. 나머지 7개 Practice가 실행되기 위한 정책·절차·조직 체계를 정의합니다. 건물의 기초 공사처럼, SM이 없으면 다른 Practice들이 제대로 동작하지 않습니다."
+      },
+      {
+        title: "핵심 요구사항",
+        type: "list",
+        items: [
+          { code: "SM1", text: "보안 개발 프로세스 전체를 문서화하고 관리하는 절차 수립" },
+          { code: "SM3", text: "보안 요구사항 분석 및 관리 절차 정의" },
+          { code: "SM4~6", text: "보안 교육·훈련 계획 수립 및 실행 기록 유지" },
+          { code: "SM7", text: "코드 서명(Code Signing) 절차 — 외부 배포 소프트웨어 무결성 보장" },
+          { code: "SM8", text: "개발 환경 보안 관리 (개발 PC·서버·네트워크)" },
+          { code: "SM9", text: "상용 기성품(COTS) 컴포넌트 보안 평가 및 관리" },
+          { code: "SM10", text: "OEM 공급사에 보안 요구사항 전달 및 검증" },
+          { code: "SM12~13", text: "지속적 개선 활동 — CMMI 3단계 이상 유지" }
+        ]
+      },
+      {
+        title: "실무 포인트",
+        type: "tip",
+        content: "시험 평가(Part 6)에서 ER2는 'CMMI 3단계 이상으로 개발된 산출물만 인정'합니다. 즉 SM 절차가 최소 3~6개월 이상 실제 운영된 기록이 없으면 평가 진입 자체가 불가합니다. 문서만 있고 운영 이력이 없으면 탈락합니다."
+      }
+    ]
+  },
+  sr: {
+    tag: "Practice 2 · 개발 단계",
+    title: "SR — 보안 요구사항 명세",
+    color: "#0F6E56",
+    sections: [
+      {
+        title: "역할",
+        type: "desc",
+        content: "제품이 가져야 할 보안 기능을 구체적으로 식별하고 문서화합니다. 발주사의 SL 목표를 제품 수준의 CR(컴포넌트 요구사항)로 변환하는 단계입니다."
+      },
+      {
+        title: "주요 활동",
+        type: "chips",
+        items: ["위협 모델링 (TARA)", "SL 목표 설정", "CR 요구사항 매핑", "요구사항 변경 이력 관리", "발주사 요구사항 분석"]
+      },
+      {
+        title: "체크포인트",
+        type: "list",
+        items: [
+          { code: "확인1", text: "보안 요구사항이 문서화되어 있는가?" },
+          { code: "확인2", text: "발주사의 SL 요구가 요구사항에 반영되어 있는가?" },
+          { code: "확인3", text: "위협 모델링을 수행하고 결과가 요구사항에 연결되어 있는가?" },
+          { code: "확인4", text: "요구사항 변경 이력이 추적 가능한가?" }
+        ]
+      }
+    ]
+  },
+  sd: {
+    tag: "Practice 3 · 개발 단계",
+    title: "SD — 안전한 설계 (Secure Design)",
+    color: "#0F6E56",
+    sections: [
+      {
+        title: "역할",
+        type: "desc",
+        content: "보안 요구사항을 구현 가능한 설계로 전환합니다. 심층 방어(Defense in Depth) 전략을 제품 아키텍처에 반영하고, Zone·Conduit 설계를 포함합니다."
+      },
+      {
+        title: "핵심 원칙",
+        type: "list",
+        items: [
+          { code: "원칙1", text: "최소 권한 원칙(Least Privilege) — 필요한 권한만 부여" },
+          { code: "원칙2", text: "Secure by Default — 기본 설정이 가장 안전한 상태" },
+          { code: "원칙3", text: "심층 방어 — 단일 방어선이 아닌 다층 방어 구조 설계" },
+          { code: "원칙4", text: "Zone·Conduit 설계 반영 — 시스템 내 제품 위치 명확화" }
+        ]
+      },
+      {
+        title: "설계 레벨",
+        type: "list",
+        items: [
+          { code: "L1", text: "개념 설계 → 전체 보안 아키텍처 검토" },
+          { code: "L2", text: "세부 설계 → 컴포넌트 단위 보안 메커니즘 설계" }
+        ]
+      }
+    ]
+  },
+  si: {
+    tag: "Practice 4 · 개발 단계",
+    title: "SI — 안전한 구현 (Secure Implementation)",
+    color: "#0F6E56",
+    sections: [
+      {
+        title: "역할",
+        type: "desc",
+        content: "설계를 실제 코드·하드웨어로 구현할 때 보안 기준을 준수합니다. 시큐어 코딩 기준을 정의하고, 외부 소스 코드의 보안 검증 절차를 포함합니다."
+      },
+      {
+        title: "시큐어 코딩 기준",
+        type: "list",
+        items: [
+          { code: "SC1", text: "입력 유효성 검사 의무화 — 범위 초과 입력 차단" },
+          { code: "SC2", text: "버퍼 오버플로우 방지 패턴 적용" },
+          { code: "SC3", text: "하드코딩된 패스워드·키 금지" },
+          { code: "SC4", text: "오류 처리 시 민감 정보 노출 금지" },
+          { code: "SC5", text: "SAST(정적 코드 분석) 도구를 통한 코드 스캐닝 필수" }
+        ]
+      },
+      {
+        title: "실무 주의",
+        type: "tip",
+        content: "내부 개발자 코드도 의도적 백도어 가능성이 있습니다. 모든 코드는 SAST 도구 스캐닝 + 독립적 코드 리뷰가 필수입니다. 오픈소스 사용 시 해당 라이브러리의 CVE 이력과 유지보수 상태를 반드시 확인하세요."
+      }
+    ]
+  },
+  svv: {
+    tag: "Practice 5 · 개발 단계",
+    title: "SVV — 보안 검증 및 확인",
+    color: "#0F6E56",
+    sections: [
+      {
+        title: "역할",
+        type: "desc",
+        content: "구현된 제품이 보안 요구사항을 실제로 만족하는지 검증합니다. Verification(설계 대로 만들었는가?)과 Validation(고객이 원하는 대로 만들었는가?)을 모두 포함합니다."
+      },
+      {
+        title: "필수 테스트 3종",
+        type: "list",
+        items: [
+          { code: "T1", text: "보안 기능 테스트 — 구현된 CR 요구사항이 정상 동작하는지 확인 (내부 QA)" },
+          { code: "T2", text: "취약점 분석 테스트 — CVE·CWE 데이터베이스 기반 알려진 취약점 점검" },
+          { code: "T3", text: "침투 테스트 — 실제 해커 관점에서 공격 가능 여부 검증 (외부 공인기관 필수)" }
+        ]
+      },
+      {
+        title: "테스트 기록 보관",
+        type: "tip",
+        content: "모든 테스트는 날짜·담당자·환경·결과를 기록해야 합니다. '언제, 누가, 어떤 장비로, 몇 번 테스트했는지' 기록이 없으면 시험 평가에서 해당 Practice를 인정받지 못합니다."
+      }
+    ]
+  },
+  dm: {
+    tag: "Practice 6 · 배포 후",
+    title: "DM — 보안 문제 관리 (Defect Management)",
+    color: "#993C1D",
+    sections: [
+      {
+        title: "역할",
+        type: "desc",
+        content: "개발 중 또는 배포 후 발견된 보안 취약점을 체계적으로 처리합니다. 취약점 발견부터 패치 배포까지 전 과정을 추적·문서화합니다."
+      },
+      {
+        title: "필수 6가지 프로세스",
+        type: "list",
+        items: [
+          { code: "P1", text: "발견 프로세스 — 취약점을 어떻게 식별하고 보고하는가" },
+          { code: "P2", text: "통지 프로세스 — 발견된 취약점을 이해관계자에게 알리는 절차" },
+          { code: "P3", text: "추적 프로세스 — 취약점 처리 상태를 추적·관리하는 절차" },
+          { code: "P4", text: "수정 프로세스 — 취약점을 수정하고 재검증하는 절차" },
+          { code: "P5", text: "공개 프로세스 — 사용자에게 취약점 정보를 공개하는 절차" },
+          { code: "P6", text: "사고 대응 프로세스 — 실제 공격 발생 시 대응 절차" }
+        ]
+      }
+    ]
+  },
+  sum: {
+    tag: "Practice 7 · 배포 후",
+    title: "SUM — 보안 업데이트 관리",
+    color: "#993C1D",
+    sections: [
+      {
+        title: "역할",
+        type: "desc",
+        content: "제품 출시 후 보안 패치와 업데이트를 안전하게 배포·관리합니다. EU CRA(Cyber Resilience Act)에 따라 제품 폐기 시까지 보안 업데이트 책임은 제조사에 있습니다."
+      },
+      {
+        title: "주요 요구사항",
+        type: "list",
+        items: [
+          { code: "U1", text: "보안 업데이트 지원 기간 명시 (제품 수명 주기 동안)" },
+          { code: "U2", text: "업데이트 무결성 보장 — 디지털 서명, 해시 검증 의무" },
+          { code: "U3", text: "업데이트 적용 절차 문서화 및 실행 기록 유지" },
+          { code: "U4", text: "롤백(Rollback) 정책 — 보안 업데이트는 롤백 불가 원칙 권고" }
+        ]
+      },
+      {
+        title: "실무 주의",
+        type: "tip",
+        content: "납품 후 패치를 하지 않으면 법적 책임이 제조사에 귀속됩니다. '한번 납품하면 끝'이라는 인식은 EU CRA 시행 이후 통하지 않습니다. 취약점 모니터링 체계(CVE 알림 구독 등)를 반드시 구축하세요."
+      }
+    ]
+  },
+  sg: {
+    tag: "Practice 8 · 배포 후",
+    title: "SG — 보안 가이드라인 (Security Guidelines)",
+    color: "#993C1D",
+    sections: [
+      {
+        title: "역할",
+        type: "desc",
+        content: "제품을 사용하는 운영자가 보안을 유지할 수 있도록 안내하는 문서를 제공합니다. 제품 자체의 보안 기능이 아무리 좋아도, 운영자가 잘못 사용하면 보안이 깨집니다."
+      },
+      {
+        title: "필수 가이드라인 5종",
+        type: "list",
+        items: [
+          { code: "G1", text: "제품 심층 방어 가이드 — 어느 Zone에 배치해야 안전한지" },
+          { code: "G2", text: "보안 강화 조치 가이드 — 기본 설정 외 추가 보안 조치 방법" },
+          { code: "G3", text: "보안 업데이트 가이드 — 패치 적용 방법 및 절차" },
+          { code: "G4", text: "운영 보안 가이드 — 일상적인 보안 운영 방법 (계정 관리, 로그 확인 등)" },
+          { code: "G5", text: "폐기 가이드 — 데이터 안전 삭제 및 장비 폐기 절차" }
+        ]
+      }
+    ]
+  }
+};
+
+function openModal(key) {
+  const d = data[key];
+  document.getElementById('modal-tag').textContent = d.tag;
+  document.getElementById('modal-tag').style.color = d.color;
+  document.getElementById('modal-title').textContent = d.title;
+  document.getElementById('modal-title').style.color = d.color;
+
+  let html = '';
+  d.sections.forEach(s => {
+    html += `<div class="section">`;
+    html += `<div class="section-title">${s.title}</div>`;
+    if (s.type === 'desc') {
+      html += `<div class="desc">${s.content}</div>`;
+    } else if (s.type === 'list') {
+      const codeColor = key === 'sm' ? '#534AB7' : (key.startsWith('d') || key === 'sum' || key === 'sg' ? '#993C1D' : '#0F6E56');
+      const codeBg = key === 'sm' ? '#EEEDFE' : (key.startsWith('d') || key === 'sum' || key === 'sg' ? '#FAECE7' : '#E1F5EE');
+      html += `<ul class="item-list">`;
+      s.items.forEach(item => {
+        html += `<li><span class="item-code" style="color:${codeColor};background:${codeBg}">${item.code}</span><span>${item.text}</span></li>`;
+      });
+      html += `</ul>`;
+    } else if (s.type === 'chips') {
+      html += `<div class="chips">`;
+      const codeColor = '#0F6E56'; const codeBg = '#E1F5EE';
+      s.items.forEach(item => {
+        html += `<span class="chip" style="color:${codeColor};background:${codeBg}">${item}</span>`;
+      });
+      html += `</div>`;
+    } else if (s.type === 'tip') {
+      html += `<div class="tip-box">${s.content}</div>`;
+    }
+    html += `</div>`;
+  });
+
+  document.getElementById('modal-body').innerHTML = html;
+  document.getElementById('modal-backdrop').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeModal() {
+  document.getElementById('modal-backdrop').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function closeOnBackdrop(e) {
+  if (e.target === document.getElementById('modal-backdrop')) closeModal();
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+</script>
+</body>
+</html>
