@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IEC 62443-4-2 FR → CR 매핑 (KS X IEC 62443-4-2:2019 원문 기반)</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --fr1c:#534AB7; --fr1bg:#EEEDFE; --fr1mid:#AFA9EC;
+    --fr2c:#0F6E56; --fr2bg:#E1F5EE; --fr2mid:#5DCAA5;
+    --fr3c:#185FA5; --fr3bg:#E6F1FB; --fr3mid:#85B7EB;
+    --fr4c:#854F0B; --fr4bg:#FAEEDA; --fr4mid:#EF9F27;
+    --fr5c:#993C1D; --fr5bg:#FAECE7; --fr5mid:#F0997B;
+    --fr6c:#3B6D11; --fr6bg:#EAF3DE; --fr6mid:#97C459;
+    --fr7c:#A32D2D; --fr7bg:#FCEBEB; --fr7mid:#F09595;
+    --g50:#F6F5F0; --g100:#ECEAE3; --g200:#D3D1C7;
+    --g400:#888780; --g600:#5F5E5A; --g800:#444441; --g900:#1a1a18;
+  }
+  body { font-family:'Noto Sans KR',-apple-system,'Apple SD Gothic Neo',sans-serif; background:var(--g50); min-height:100vh; padding:32px 16px 60px; color:var(--g900); }
+
+  header { max-width:1120px; margin:0 auto 24px; }
+  .hdr-top { display:flex; align-items:flex-end; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:14px; }
+  .mono { font-family:'IBM Plex Mono','Courier New',monospace; font-size:11px; letter-spacing:.12em; color:var(--g400); text-transform:uppercase; margin-bottom:5px; }
+  h1 { font-size:19px; font-weight:700; }
+  .sub { font-size:12px; color:var(--g400); margin-top:3px; }
+
+  .search-wrap { position:relative; min-width:180px; max-width:260px; flex:1; }
+  .search-wrap input { width:100%; padding:7px 12px 7px 30px; border:1.5px solid var(--g200); border-radius:8px; font-size:13px; background:#fff; color:var(--g900); outline:none; transition:border-color .15s; }
+  .search-wrap input:focus { border-color:var(--g400); }
+  .search-icon { position:absolute; left:9px; top:50%; transform:translateY(-50%); color:var(--g400); font-size:14px; pointer-events:none; }
+
+  .filter-bar { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-bottom:6px; }
+  .flabel { font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--g400); margin-right:2px; letter-spacing:.06em; }
+  .fbtn { border:1.5px solid var(--g200); border-radius:20px; padding:3px 11px; font-size:12px; font-weight:600; cursor:pointer; background:#fff; color:var(--g600); transition:all .15s; }
+  .fbtn:hover { border-color:var(--g400); }
+  .fbtn.active { color:#fff; border-color:transparent; }
+  .fbtn.all.active { background:var(--g800); }
+  .fbtn[data-fr="1"].active{background:var(--fr1c)} .fbtn[data-fr="2"].active{background:var(--fr2c)}
+  .fbtn[data-fr="3"].active{background:var(--fr3c)} .fbtn[data-fr="4"].active{background:var(--fr4c)}
+  .fbtn[data-fr="5"].active{background:var(--fr5c)} .fbtn[data-fr="6"].active{background:var(--fr6c)}
+  .fbtn[data-fr="7"].active{background:var(--fr7c)}
+  .slbtn { border:1.5px solid var(--g200); border-radius:6px; padding:3px 9px; font-size:12px; font-weight:600; cursor:pointer; background:#fff; color:var(--g600); transition:all .15s; font-family:'IBM Plex Mono',monospace; }
+  .slbtn:hover { border-color:var(--g400); }
+  .slbtn.active { background:var(--g800); color:#fff; border-color:var(--g800); }
+
+  .count-bar { max-width:1120px; margin:0 auto 10px; font-size:12px; color:var(--g400); font-family:'IBM Plex Mono',monospace; }
+  .count-bar strong { color:var(--g800); }
+
+  .tbl-wrap { max-width:1120px; margin:0 auto; background:#fff; border-radius:12px; border:1px solid var(--g200); overflow:hidden; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  thead th { background:var(--g800); color:#fff; padding:10px 14px; text-align:left; font-size:11px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; font-family:'IBM Plex Mono',monospace; white-space:nowrap; border-right:1px solid rgba(255,255,255,.08); }
+  thead th:last-child { border-right:none; }
+  tbody tr { border-bottom:1px solid var(--g100); transition:background .1s; cursor:pointer; }
+  tbody tr:last-child { border-bottom:none; }
+  tbody tr:hover { background:var(--g50); }
+  tbody tr.hidden { display:none; }
+  td { padding:9px 14px; vertical-align:middle; }
+
+  .fr-badge { display:inline-flex; align-items:center; gap:5px; padding:3px 8px 3px 6px; border-radius:6px; font-size:11px; font-weight:700; white-space:nowrap; font-family:'IBM Plex Mono',monospace; }
+  .fr-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+  .cr-code { font-family:'IBM Plex Mono',monospace; font-size:12px; font-weight:600; padding:2px 7px; border-radius:5px; white-space:nowrap; }
+  .cr-name { font-weight:500; color:var(--g900); line-height:1.4; }
+  .cr-name-en { font-size:11px; color:var(--g400); margin-top:1px; font-family:'IBM Plex Mono',monospace; }
+
+  .sl-pips { display:flex; gap:3px; }
+  .pip { width:22px; height:22px; border-radius:5px; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center; font-family:'IBM Plex Mono',monospace; color:var(--g200); background:var(--g100); }
+  .pip.on { color:#fff; }
+  .pip.sl1on { background:#AFA9EC; } .pip.sl2on { background:#5DCAA5; }
+  .pip.sl3on { background:#EF9F27; } .pip.sl4on { background:#F09595; }
+
+  .re-tag { font-size:10px; font-weight:700; padding:1px 5px; border-radius:3px; font-family:'IBM Plex Mono',monospace; background:#FAEEDA; color:#854F0B; margin-left:4px; }
+  .excl-tag { font-size:10px; font-weight:700; padding:1px 5px; border-radius:3px; font-family:'IBM Plex Mono',monospace; background:var(--g100); color:var(--g600); margin-left:4px; }
+  .na-tag { font-size:10px; font-weight:700; padding:1px 5px; border-radius:3px; font-family:'IBM Plex Mono',monospace; background:#F1EFE8; color:var(--g400); margin-left:4px; }
+
+  .grp-hdr td { padding:7px 14px; font-size:12px; font-weight:700; border-top:2px solid; background:var(--g50); cursor:default; }
+  .grp-hdr:hover { background:var(--g50) !important; }
+
+  .ctype { display:inline-block; font-size:10px; font-weight:600; padding:1px 5px; border-radius:3px; margin:1px 2px 1px 0; font-family:'IBM Plex Mono',monospace; background:var(--g100); color:var(--g600); }
+  .ctype.ndr { background:#E6F1FB; color:#185FA5; }
+  .ctype.edr { background:#EAF3DE; color:#3B6D11; }
+  .ctype.hdr { background:#FAEEDA; color:#854F0B; }
+  .ctype.sar { background:#FAECE7; color:#993C1D; }
+  .ctype.all { background:var(--g800); color:#fff; }
+
+  .no-results { text-align:center; padding:48px 20px; color:var(--g400); font-size:14px; display:none; }
+
+  /* 모달 */
+  .backdrop { display:none; position:fixed; inset:0; background:rgba(26,26,24,.52); z-index:200; align-items:center; justify-content:center; padding:20px; }
+  .backdrop.open { display:flex; }
+  .modal { background:#fff; border-radius:14px; width:100%; max-width:560px; max-height:86vh; overflow-y:auto; box-shadow:0 24px 60px rgba(0,0,0,.2); animation:mIn .18s ease; }
+  @keyframes mIn { from{opacity:0;transform:scale(.96) translateY(6px)} to{opacity:1;transform:none} }
+  .mhdr { padding:20px 20px 14px; border-bottom:1px solid var(--g100); display:flex; justify-content:space-between; align-items:flex-start; gap:10px; position:sticky; top:0; background:#fff; border-radius:14px 14px 0 0; z-index:1; }
+  .mtag { font-family:'IBM Plex Mono',monospace; font-size:10px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; margin-bottom:4px; }
+  .mtitle { font-size:17px; font-weight:700; line-height:1.3; }
+  .men { font-size:11px; color:var(--g400); margin-top:2px; font-family:'IBM Plex Mono',monospace; }
+  .mclose { background:var(--g100); border:none; width:30px; height:30px; border-radius:7px; cursor:pointer; font-size:15px; color:var(--g400); flex-shrink:0; display:flex; align-items:center; justify-content:center; transition:background .15s; }
+  .mclose:hover { background:var(--g200); }
+  .mbdy { padding:18px 20px 26px; }
+  .msec { margin-bottom:16px; }
+  .msec:last-child { margin-bottom:0; }
+  .msec-t { font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--g400); margin-bottom:7px; font-family:'IBM Plex Mono',monospace; }
+  .mdesc { font-size:13.5px; line-height:1.75; color:#2C2C2A; }
+  .mlist { list-style:none; display:flex; flex-direction:column; gap:6px; }
+  .mlist li { font-size:13px; line-height:1.6; color:#3d3d3a; padding-left:14px; position:relative; }
+  .mlist li::before { content:"·"; position:absolute; left:0; color:var(--g400); }
+  .mtip { background:var(--g50); border-left:3px solid var(--g200); border-radius:0 6px 6px 0; padding:9px 13px; font-size:13px; line-height:1.65; color:var(--g800); }
+  .sl-row { display:flex; gap:5px; flex-wrap:wrap; align-items:center; }
+  .sl-chip { padding:3px 10px; border-radius:6px; font-size:12px; font-weight:600; font-family:'IBM Plex Mono',monospace; }
+  .sl-note { font-size:12px; color:var(--g400); margin-top:5px; }
+  .src-note { font-size:11px; color:var(--g400); font-family:'IBM Plex Mono',monospace; background:var(--g50); padding:6px 10px; border-radius:6px; margin-top:12px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hdr-top">
+    <div>
+      <div class="mono">KS X IEC 62443-4-2:2019 원문 기반</div>
+      <h1>FR → CR 전체 매핑 테이블</h1>
+      <div class="sub">7개 기초 요구사항(FR) · 공통 CR 전체 · SL 적용 범위 · 행 클릭 시 상세 설명</div>
+    </div>
+    <div class="search-wrap">
+      <span class="search-icon">⌕</span>
+      <input type="text" id="search" placeholder="CR 번호 또는 키워드..." oninput="applyFilters()">
+    </div>
+  </div>
+  <div class="filter-bar">
+    <span class="flabel">FR:</span>
+    <button class="fbtn all active" onclick="setFR('all')">전체</button>
+    <button class="fbtn" data-fr="1" onclick="setFR(1)">FR 1 식별·인증</button>
+    <button class="fbtn" data-fr="2" onclick="setFR(2)">FR 2 사용 통제</button>
+    <button class="fbtn" data-fr="3" onclick="setFR(3)">FR 3 무결성</button>
+    <button class="fbtn" data-fr="4" onclick="setFR(4)">FR 4 기밀성</button>
+    <button class="fbtn" data-fr="5" onclick="setFR(5)">FR 5 데이터 흐름</button>
+    <button class="fbtn" data-fr="6" onclick="setFR(6)">FR 6 사고 대응</button>
+    <button class="fbtn" data-fr="7" onclick="setFR(7)">FR 7 가용성</button>
+  </div>
+  <div class="filter-bar">
+    <span class="flabel">SL:</span>
+    <button class="slbtn active" onclick="setSL('all')">전체</button>
+    <button class="slbtn" onclick="setSL(1)">SL 1+</button>
+    <button class="slbtn" onclick="setSL(2)">SL 2+</button>
+    <button class="slbtn" onclick="setSL(3)">SL 3+</button>
+    <button class="slbtn" onclick="setSL(4)">SL 4</button>
+  </div>
+</header>
+
+<div class="count-bar">전체 <strong id="vis-cnt">0</strong>개 CR 표시 중</div>
+
+<div class="tbl-wrap">
+  <table id="main-tbl">
+    <thead>
+      <tr>
+        <th style="width:90px">FR</th>
+        <th style="width:88px">CR 번호</th>
+        <th>명칭</th>
+        <th style="width:116px">SL 적용</th>
+        <th style="width:60px">RE</th>
+        <th style="width:120px">컴포넌트 적용</th>
+      </tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
+  <div class="no-results" id="no-res">검색 결과가 없습니다</div>
+</div>
+
+<!-- 모달 -->
+<div class="backdrop" id="bd" onclick="closeBD(event)">
+  <div class="modal">
+    <div class="mhdr">
+      <div>
+        <div class="mtag" id="m-tag"></div>
+        <div class="mtitle" id="m-title"></div>
+        <div class="men" id="m-en"></div>
+      </div>
+      <button class="mclose" onclick="closeM()">✕</button>
+    </div>
+    <div class="mbdy" id="m-bdy"></div>
+  </div>
+</div>
+
+<script>
+/* ─── 원문 데이터 (KS X IEC 62443-4-2:2019 직접 확인) ─────────────────
+   sl_min : 이 SL 이상에서 적용 (1=SL1부터, 2=SL2부터, 99=해당없음)
+   sl1excl: SL 1에서 "선택 제외"인 경우 true (적용은 SL2~4)
+   re     : SL 강화(RE) 여부 및 내용
+   ctype  : 'all'=모든컴포넌트, 'ndr'=네트워크장치, 'ndr_only'=NDR전용(공통CR아님), 'na'=해당없음
+   ────────────────────────────────────────────────────────────────── */
+const CRS = [
+  // ── FR 1 ─────────────────────────────────────────────────────────
+  { fr:1, cr:"CR 1.1",  name:"인간 사용자 식별 및 인증",           en:"Human user identification and authentication",
+    sl:[1,2,3,4], re:"SL2: RE(1) 유일 식별·인증\nSL3: RE(1)(2) 모든 인터페이스 다중 인증", ctype:"all",
+    desc:"컴포넌트는 인간 사용자가 접근 가능한 모든 인터페이스에서 사용자를 식별하고 인증하는 역량을 제공해야 한다.",
+    detail:["패스워드, 토큰, 생체 인식, 물리적 키 리드 등의 인증 수단 적용","사용자 식별 및 인증은 현장의 비상 조치를 방해하면 안 됨","로컬 및 원격 접속 모두에 적용"],
+    tip:"SL 1: 기본 식별·인증 / SL 2: RE(1) 유일 식별·인증 추가 / SL 3·4: RE(1)(2) 모든 인터페이스 다중 인증 추가" },
+
+  { fr:1, cr:"CR 1.2",  name:"소프트웨어 프로세스와 장치의 식별 및 인증", en:"Software process and device identification and authentication",
+    sl:[2,3,4], re:"SL3: RE(1) 유일 식별·인증", ctype:"all",
+    desc:"컴포넌트는 다른 컴포넌트(소프트웨어 애플리케이션, 임베디드 장치, 호스트 장치, 네트워크 장치)를 자체적으로 식별하고 인증하는 역량을 제공해야 한다.",
+    detail:["SL 1에서는 선택 제외","장치 간 인증: 패스워드, 토큰, 위치(물리적·논리적) 방식 사용","그룹 기반 인증도 허용 (공유 계정 또는 공유 대칭키)"],
+    tip:"SL 1에서는 요구사항 없음(선택 제외). SL 2부터 적용되며, SL 3에서 유일 식별·인증(RE(1)) 강화." },
+
+  { fr:1, cr:"CR 1.3",  name:"계정 관리",                          en:"Account management",
+    sl:[1,2,3,4], re:null, ctype:"all",
+    desc:"컴포넌트는 모든 계정의 관리를 직접 지원하거나, 계정을 관리하는 시스템에 통합할 수 있는 역량을 제공해야 한다.",
+    detail:["LDAP, Active Directory 등 디렉터리 서비스와의 인증 평가를 위한 통합 지원","자체적으로 계정 관리 역량 제공 가능","SL 1~4 모두 동일 요구사항(강화 없음)"],
+    tip:"4가지 SL 모두 동일한 CR 1.3 요구사항 적용. 강화 요구사항(RE) 없음." },
+
+  { fr:1, cr:"CR 1.4",  name:"식별자 관리",                        en:"Identifier management",
+    sl:[1,2,3,4], re:null, ctype:"all",
+    desc:"컴포넌트는 식별자 관리를 지원하는 시스템으로 통합할 수 있는 역량을 제공 및/또는 식별자 관리를 직접 지원하는 역량을 제공해야 한다.",
+    detail:["식별자는 관련 계정과 관련해서 유일하고 모호하지 않아야 함","계정 이름, 유닉스 사용자 ID, 마이크로소프트 윈도우 계정 GUID, X.509 인증서 등","강화 요구사항 없음 (SL 1~4 동일)"],
+    tip:"4가지 SL 모두 동일한 CR 1.4 요구사항 적용. 강화 요구사항(RE) 없음." },
+
+  { fr:1, cr:"CR 1.5",  name:"인증자 관리",                        en:"Authenticator management",
+    sl:[1,2,3,4], re:"SL3: RE(1) 하드웨어 기반 인증자 보안", ctype:"all",
+    desc:"컴포넌트는 a) 초기 인증자 내용의 사용 지원, b) 설치 시 디폴트 인증자 변경 가능, c) 주기적인 인증자 변경/새로고침 지원, d) 저장·사용·전송 중에 인가되지 않은 노출 또는 변경으로부터 인증자 보호 역량을 제공해야 한다.",
+    detail:["디폴트 패스워드 변경 강제","패스워드, 토큰, 생체 인식, 물리적 키 카드 등 포함","SL 3 이상: 하드웨어 메커니즘을 통해 중요한 장기 지속 인증자 보호(RE(1))"],
+    tip:"SL 1·2: 기본 인증자 관리 / SL 3·4: RE(1) 하드웨어 기반 인증자 보안 추가 (TPM 등)." },
+
+  { fr:1, cr:"CR 1.6",  name:"무선 접근 관리",                     en:"Wireless access management",
+    sl:[99], re:null, ctype:"ndr_only",
+    desc:"무선 접근 관리 요구사항은 네트워크 컴포넌트 대상이며, 15절의 네트워크 컴포넌트 요구사항(NDR 1.6)에서 설명한다.",
+    detail:["공통 CR 아님 — NDR(네트워크 장치 요구사항)에서 별도 정의","NDR 1.6으로 적용됨"],
+    tip:"공통 CR이 아닙니다. NDR 전용입니다. 15절 네트워크 장치 요구사항 참조." },
+
+  { fr:1, cr:"CR 1.7",  name:"패스워드 기반 인증 강도",            en:"Strength of password-based authentication",
+    sl:[1,2,3,4], re:"SL3: RE(1) 인간 사용자 패스워드 생성 및 사용기간 제한\nSL4: RE(1)(2) 모든 사용자 대상 패스워드 사용기간 제한", ctype:"all",
+    desc:"패스워드 기반 인증을 활용하는 컴포넌트는 국제적으로 인지되고 증명된 패스워드 지침에 따라 패스워드 강도 설정을 강제하는 역량을 제공하거나 그러한 시스템으로 통합되어야 한다.",
+    detail:["최소 길이, 다양한 문자, 유효 기간 등의 패스워드 강도 설정 강제","일반적으로 인정된 보안 산업 사례 준수 (NIST 등)","SL 3: 인간 사용자 패스워드 재사용 방지, 최소·최대 생애주기 제약","SL 4: 모든 사용자(사람·SW·장치) 대상 패스워드 사용기간 제한"],
+    tip:"SL 1·2: 기본 강도 설정 / SL 3: RE(1) 인간 사용자 추가 제약 / SL 4: RE(1)(2) 모든 사용자 대상 확대." },
+
+  { fr:1, cr:"CR 1.8",  name:"PKI(공개키 인프라) 인증",            en:"Public key infrastructure (PKI) certificates",
+    sl:[2,3,4], re:null, ctype:"all",
+    desc:"PKI를 활용할 때, 컴포넌트는 IEC 62443-3-3 SR 1.8에 따라 상호작용하고 운용되는 역량을 제공하거나 그러한 시스템에 통합되어야 한다.",
+    detail:["SL 1에서는 선택 제외","CA(인증 기관)의 적절한 위치 및 신뢰된 CA 목록 고려","CRL/OCSP를 통한 인증서 폐기 상태 검증","강화 요구사항(RE) 없음"],
+    tip:"SL 1에서는 요구사항 없음(선택 제외). SL 2~4 동일하게 적용. RE 없음." },
+
+  { fr:1, cr:"CR 1.9",  name:"PKI 인증 강도",                      en:"Strength of public key authentication",
+    sl:[2,3,4], re:"SL3: RE(1) 하드웨어 기반 공개키 인증 보안", ctype:"all",
+    desc:"PKI 인증을 활용하는 컴포넌트는 a) 인증서 서명의 유효성 검사, b) 종단 인증서 적용하여 자체 서명 인증서나 인증서 체인 검증, c) 인증서 폐기 상태 검증, d) 대응되는 개인키의 사용자(사람, SW, 장치) 통제 설정, e) 인증된 신원을 사용자에게 매핑, f) 8.5를 준수하는 공개키 인증에 사용되는 키와 알고리즘 보장 역량을 제공해야 한다.",
+    detail:["SL 1에서는 선택 제외","SL 3 이상: 하드웨어 메커니즘을 통해 중요한 장기 지속 개인키 보호(RE(1))"],
+    tip:"SL 1: 선택 제외 / SL 2: 기본 PKI 강도 / SL 3·4: RE(1) 하드웨어 기반 공개키 인증 보안 추가." },
+
+  { fr:1, cr:"CR 1.10", name:"인증자 피드백",                      en:"Authenticator feedback",
+    sl:[1,2,3,4], re:null, ctype:"all",
+    desc:"컴포넌트가 인증 역량을 제공할 때, 인증 프로세스 동안에 인증자의 피드백 정보를 명확하지 않게 제공해야 한다.",
+    detail:["패스워드 입력 시 별표(*) 등 임의의 문자로 마스킹 처리","'모르는 사용자 이름(unknown user name)' 같이 인증 실패의 근거를 말하는 힌트 제공 금지","SSH 토큰, OTP 입력에도 동일 적용"],
+    tip:"SL 1~4 모두 동일 요구사항. 강화 요구사항(RE) 없음." },
+
+  { fr:1, cr:"CR 1.11", name:"로그인 시도 실패",                   en:"Unsuccessful login attempts",
+    sl:[1,2,3,4], re:null, ctype:"all",
+    desc:"컴포넌트가 인증 역량을 제공하는 경우 a) 설정한 시간 동안 연속된 부정 접근 시도 횟수 제한, b) 횟수 도달 시 정해진 시간 동안 또는 관리자가 잠금-해제할 때까지 접근 거부 역량을 제공해야 한다.",
+    detail:["연속된 부정 접근 시도 횟수 제한 강제","접근 시도 횟수를 0으로 자동 재설정 가능","필수 서비스에 사용되는 계정에 대화형 로그인 허용하면 서비스 거부 가능성 — 주의 필요","강화 요구사항(RE) 없음"],
+    tip:"SL 1~4 모두 동일 요구사항. 강화 요구사항(RE) 없음." },
+
+  { fr:1, cr:"CR 1.12", name:"시스템 사용 알림",                   en:"System use notification",
+    sl:[1,2,3,4], re:null, ctype:"all",
+    desc:"컴포넌트가 로컬 인간 사용자 접근/HMI를 지원할 경우, 인증하기 전에 시스템 사용 알림 메시지를 보여주는 역량을 제공해야 한다. 시스템 사용 알림 메시지는 인가된 직원에 의해 설정 가능해야 한다.",
+    detail:["개인 자산 소유자가 소유한 시스템에 접근함을 고지","시스템 사용은 모니터링, 기록 및 감사 대상","인가되지 않은 시스템 사용은 금지되고 민·형사 상의 처벌 대상","시스템 사용은 모니터링과 기록에 동의함을 의미"],
+    tip:"SL 1~4 모두 동일 요구사항. 강화 요구사항(RE) 없음." },
+
+  { fr:1, cr:"CR 1.13", name:"신뢰할 수 없는 네트워크 경유 접근",  en:"Access via untrusted networks",
+    sl:[99], re:null, ctype:"ndr_only",
+    desc:"신뢰할 수 없는 네트워크를 경유한 접근 요구사항은 컴포넌트별로 다르며, 12절부터 15절까지 각 특정 컴포넌트 유형별 요구사항에서 설명한다.",
+    detail:["공통 CR 아님 — 컴포넌트 유형별로 별도 정의","SAR 1.13(소프트웨어), EDR 1.13(임베디드), HDR 1.13(호스트), NDR 1.13(네트워크) 각각 적용"],
+    tip:"공통 CR이 아닙니다. 컴포넌트 유형별 요구사항(12~15절)을 참조하세요." },
+
+  { fr:1, cr:"CR 1.14", name:"대칭키 인증 강도",                   en:"Strength of symmetric key authentication",
+    sl:[2,3,4], re:"SL3: RE(1) 하드웨어 기반 대칭키 인증 보안", ctype:"all",
+    desc:"대칭키를 활용하는 컴포넌트는 a) 대칭키를 사용하여 상호 신뢰 수립, b) 공유 비밀을 안전하게 저장(인증은 공유된 비밀이 비밀로 유지되는 한 유효함), c) 공유 비밀의 접근 제한, d) 대칭키 인증에 사용되는 알고리즘과 키는 8.5 준수 보장 역량을 제공해야 한다.",
+    detail:["SL 1에서는 선택 제외","니덤-슈로더(Needham-Schröder)나 커버러스(Kerberos) 같은 대칭키 인증 스키마 사용 가능","CMAC, GCM, GMAC 운영 모드 활용 가능","SL 3·4: 하드웨어 메커니즘을 통해 중요한 장기 지속 대칭키 보호(RE(1))"],
+    tip:"SL 1: 선택 제외 / SL 2: 기본 대칭키 강도 / SL 3·4: RE(1) 하드웨어 기반 대칭키 보안 추가." },
+
+  // ── FR 2 ─────────────────────────────────────────────────────────
+  { fr:2, cr:"CR 2.1",  name:"권한 부여",                          en:"Authorization enforcement",
+    sl:[1,2,3,4], re:"SL2: RE(1) 모든 사용자(사람·SW·장치) 권한 부여\nSL3: RE(1)(2) 역할 기반 허가\nSL4: RE(1)(2)(3) 감독자 우선권\nSL4: RE(1)(2)(3)(4) 이중 승인", ctype:"all",
+    desc:"컴포넌트는 배정된 책무에 기초하여 식별되고 인증된 모든 사용자에게 권한 부여 메커니즘을 제공해야 한다.",
+    detail:["최소권한 원칙 적용","SL 2: RE(1) 소프트웨어 프로세스와 장치에도 권한 부여 적용","SL 3: RE(2) 역할 기반 허가 매핑 및 수정 가능한 인가된 역할 제공","SL 4: RE(3) 감독자 수동 우선권(manual override), RE(4) 이중 승인 지원"],
+    tip:"SL별 누적 강화: SL1 기본 → SL2 RE(1) → SL3 RE(2) → SL4 RE(3)(4) 추가." },
+
+  { fr:2, cr:"CR 2.2",  name:"무선 사용 통제",                     en:"Wireless use control",
+    sl:[1,2,3,4], re:null, ctype:"all",
+    desc:"컴포넌트가 무선 인터페이스 사용을 지원하는 경우, 일반적으로 수용되는 산업계 관행에 따라 사용 인가, 모니터링 및 제한 사항 등을 지원하는 시스템으로 통합할 수 있는 역량을 제공해야 한다.",
+    detail:["무선 사용 통제는 시스템을 구성하는 다른 장치에서 구현될 수 있음","NAC(Network Admission Control) 같은 네트워크 접근 통제와 연계","강화 요구사항(RE) 없음"],
+    tip:"SL 1~4 모두 동일 요구사항. 강화 요구사항(RE) 없음." },
+
+  { fr:2, cr:"CR 2.3",  name:"휴대용 및 모바일 장치에 대한 사용 통제", en:"Use control for portable and mobile devices",
+    sl:[99], re:null, ctype:"na",
+    desc:"IEC 62443-3-3 SR 2.3과 관련된 컴포넌트 수준의 요구사항은 없다.",
+    detail:["컴포넌트 수준 요구사항 해당사항 없음","시스템 수준(Part 3-3)에서 다룸"],
+    tip:"컴포넌트 수준 요구사항 없음. IEC 62443-3-3(시스템 수준)에서 다루는 내용." },
+
+  { fr:2, cr:"CR 2.4",  name:"모바일 코드",                        en:"Mobile code",
+    sl:[99], re:null, ctype:"ndr_only",
+    desc:"모바일 코드의 사용 통제 요구사항은 컴포넌트별로 다르며, 12절부터 15절까지 각 특정 컴포넌트 유형별 요구사항에서 설명한다.",
+    detail:["공통 CR 아님 — 컴포넌트 유형별로 별도 정의","SAR 2.4(소프트웨어), EDR 2.4(임베디드), HDR 2.4(호스트), NDR 2.4(네트워크) 각각 적용"],
+    tip:"공통 CR이 아닙니다. 컴포넌트 유형별 요구사항(12~15절)을 참조하세요." },
+
+  { fr:2, cr:"CR 2.5",  name:"세션 잠금",                          en:"Session lock",
+    sl:[1,2,3,4], re:null, ctype:"all",
+    desc:"컴포넌트가 로컬 또는 네트워크를 통해 접속하는 것과 상관없이 인간 사용자 인터페이스를 제공하는 경우, a) 설정 시간 동안 사용하지 않거나 사용자가 수동으로 시작하지 않으면 세션 잠금 시작, b) 세션 소유한 인간 사용자 또는 다른 인가된 사용자가 적절한 식별 및 인증 절차를 사용하여 접근을 다시 설정하기 전까지 세션 잠금이 유효한 상태로 유지해야 한다.",
+    detail:["설정 가능한 시간 간격 이후에 세션 잠금 메커니즘을 자동 활성화","세션 잠금은 시스템 수준에서 설정 가능","강화 요구사항(RE) 없음"],
+    tip:"SL 1~4 모두 동일 요구사항. 강화 요구사항(RE) 없음." },
+
+  { fr:2, cr:"CR 2.6",  name:"원격 세션 종료",                     en:"Remote session termination",
+    sl:[2,3,4], re:null, ctype:"all",
+    desc:"컴포넌트가 원격 세션을 지원한다면, 설정 시간동안 활동이 없어서 자동으로, 로컬 담당자에 의해 수동으로, 또는 세션을 시작한 사용자에 의해 수동으로 원격 세션을 종료하는 역량을 제공해야 한다.",
+    detail:["SL 1에서는 선택 제외","원격 세션은 위험 평가를 기반으로 자산 소유자가 정의한 구역의 경계에 걸쳐 컴포넌트가 접근될 때마다 개시됨","강화 요구사항(RE) 없음"],
+    tip:"SL 1에서는 선택 제외. SL 2~4에서 동일하게 적용." },
+
+  { fr:2, cr:"CR 2.7",  name:"동시 세션 제어",                     en:"Concurrent session control",
+    sl:[3,4], re:null, ctype:"all",
+    desc:"컴포넌트는 특정한 사용자(사람, 소프트웨어 프로세스 또는 장치)의 인터페이스별로 동시 세션 개수를 제한하는 역량을 제공해야 한다.",
+    detail:["SL 1·2에서는 선택 제외","세션 개수 제한이 부과되지 않으면 자원 고갈 서비스 거부(DoS) 공격 가능","강화 요구사항(RE) 없음"],
+    tip:"SL 1·2에서는 선택 제외. SL 3·4에서 동일하게 적용." },
+
+  { fr:2, cr:"CR 2.8",  name:"감사 이벤트",                        en:"Auditable events",
+    sl:[1,2,3,4], re:null, ctype:"all",
+    desc:"컴포넌트는 다음 카테고리의 보안과 관련된 감사 레코드를 생성하는 역량을 제공해야 한다: a) 접근 통제, b) 요청 오류(errors), c) 제어시스템 이벤트, d) 백업 및 복구 이벤트, e) 설정 변경, f) 감사 로그 이벤트. 개별 감사 레코드는 a) 타임 스탬프, b) 소스, c) 카테고리, d) 유형, e) 이벤트 ID, f) 이벤트 결과를 포함해야 한다.",
+    detail:["보안 이벤트 카테고리는 기능 자체가 컴포넌트에 의해 제공될 때만 가용","강화 요구사항(RE) 없음"],
+    tip:"SL 1~4 모두 동일 요구사항. 강화 요구사항(RE) 없음." },
+
+  { fr:2, cr:"CR 2.9",  name:"감사 저장 용량",                     en:"Audit storage capacity",
+    sl:[1,2,3,4], re:"SL3: RE(1) 감사 저장 용량 임계치 도달 경고", ctype:"all",
+    desc:"컴포넌트는 a) 로그 관리를 위해 일반적으로 인지되는 권고사항에 따라 감사 레코드 저장 용량을 할당하는 역량, b) 감사 저장 용량에 근접하거나 초과 시 컴포넌트 실패에 대비하는 메커니즘을 제공해야 한다.",
+    detail:["충분한 감사 저장 용량 제공 및 보존 정책 고려","감사 데이터를 시스템에 전송하기 전까지 버퍼링을 위해 충분한 지역 저장소 제공 필요","SL 3·4: RE(1) 임계치 도달 시 경고 발행 역량 추가"],
+    tip:"SL 1·2: 기본 저장 용량 / SL 3·4: RE(1) 임계치 경고 추가." },
+
+  { fr:2, cr:"CR 2.10", name:"감사 처리 실패 대응",                en:"Response to audit processing failures",
+    sl:[1,2,3,4], re:null, ctype:"all",
+    desc:"컴포넌트는 a) 감사 처리 실패 이벤트 시에 필수 서비스와 기능 손실에 대비하기 위한 역량, b) 일반적으로 수용되는 산업 사례 및 권고안에 따라 감사 처리 실패에 대응하여 적절한 작업을 지원하는 역량을 제공해야 한다.",
+    detail:["감사 생성은 이벤트 소스에서 발생하며, 감사 처리는 레코드 전송, 추가 사항 및 지속적 저장소 포함","강화 요구사항(RE) 없음"],
+    tip:"SL 1~4 모두 동일 요구사항. 강화 요구사항(RE) 없음." },
+
+  { fr:2, cr:"CR 2.11", name:"타임 스탬프",                        en:"Timestamps",
+    sl:[1,2,3,4], re:"SL2: RE(1) 시각 동기화\nSL4: RE(1)(2) 시간 소스 무결성 보호", ctype:"all",
+    desc:"컴포넌트는 감사 레코드에서 사용하는 타임 스탬프(날짜 및 시간 포함) 생성 역량을 제공해야 한다.",
+    detail:["타임 스탬프 형식의 모범 참조: ISO/IEC 8601:2004","SL 2: RE(1) 시스템 전체 시간 소스와 동기화하는 타임 스탬프 생성","SL 4: RE(2) 시각 동기화 메커니즘은 인가되지 않은 변경을 탐지하고 변경 시 감사 이벤트 생성"],
+    tip:"SL 1: 기본 타임 스탬프 / SL 2·3: RE(1) 시각 동기화 / SL 4: RE(2) 시간 소스 무결성 보호 추가." },
+
+  { fr:2, cr:"CR 2.12", name:"부인방지",                           en:"Non-repudiation",
+    sl:[1,2,3,4], re:"SL4: RE(1) 모든 사용자 대상 부인방지", ctype:"all",
+    desc:"컴포넌트가 인간 사용자 인터페이스를 제공하는 경우, 해당 인간 사용자가 특정 행동을 했는지 여부를 판단하는 역량을 제공해야 한다. 이런 역량을 지원할 수 없는 제어 요소는 컴포넌트 문서에 목록화해야 한다.",
+    detail:["사용자의 작업 수행, 구성 변경, 정보 생성, 메시지 전송 등의 행동 감지","디지털 서명, 디지털 메시지 수신 및 타임 스탬프 등 다양한 기술 적용","SL 1~3: 동일 요구사항 / SL 4: RE(1) 소프트웨어 프로세스와 장치에도 확대 적용"],
+    tip:"SL 1·2·3: 인간 사용자 대상 기본 부인방지 / SL 4: RE(1) 모든 사용자(사람·SW·장치) 대상 확대." },
+
+  { fr:2, cr:"CR 2.13", name:"물리적 진단 및 시험 인터페이스의 사용", en:"Use of physical diagnostic and test interfaces",
+    sl:[99], re:null, ctype:"ndr_only",
+    desc:"물리적 진단 및 시험 인터페이스의 사용 요구사항은 컴포넌트별로 다르며, 12절부터 15절까지 각 특정 컴포넌트 유형별 요구사항에서 설명한다.",
+    detail:["공통 CR 아님 — 컴포넌트 유형별로 별도 정의","EDR 2.13, HDR 2.13, NDR 2.13 각각 적용"],
+    tip:"공통 CR이 아닙니다. 컴포넌트 유형별 요구사항(12~15절)을 참조하세요." },
+
+  // ── FR 3 ─────────────────────────────────────────────────────────
+  { fr:3, cr:"CR 3.1",  name:"통신 무결성",                        en:"Communication integrity",
+    sl:[1,2,3,4], re:"SL2: RE(1) 통신 인증", ctype:"all",
+    desc:"컴포넌트는 전송된 정보의 무결성을 보호하는 역량을 제공해야 한다.",
+    detail:["네트워크 패킷 조작과 같은 전송 중인 데이터의 조작을 기반으로 하는 공격 대응","SL 2: RE(1) 통신 중에 수신된 정보의 진본성을 검증하는 역량 추가","무결성 보호와 원본 인증은 기밀성 보호를 제공하지 않고 달성될 수 있음"],
+    tip:"SL 1: 기본 무결성 보호 / SL 2·3·4: RE(1) 통신 인증 추가." },
+
+  { fr:3, cr:"CR 3.2",  name:"악성코드로부터 보호",                en:"Protection from malicious code",
+    sl:[99], re:null, ctype:"ndr_only",
+    desc:"악성코드로부터 보호 요구사항은 컴포넌트별로 다르며, 12절부터 15절까지 각 특정 컴포넌트 유형별 요구사항에서 설명한다.",
+    detail:["공통 CR 아님 — 컴포넌트 유형별로 별도 정의","SAR 3.2, EDR 3.2, HDR 3.2, NDR 3.2 각각 적용"],
+    tip:"공통 CR이 아닙니다. 컴포넌트 유형별 요구사항(12~15절)을 참조하세요." },
+
+  { fr:3, cr:"CR 3.3",  name:"보안 기능 검증",                     en:"Security functionality verification",
+    sl:[1,2,3,4], re:"SL4: RE(1) 정상 운영 중 보안 기능 검증", ctype:"all",
+    desc:"컴포넌트는 IEC 62443-3-3 SR 3.3에 따라 보안 기능의 의도된 작동을 검증하는 역량을 제공해야 한다.",
+    detail:["EICAR 안티바이러스 테스트에 의한 안티바이러스 대책 검증","인가받지 않은 계정으로 접근을 시도하여 식별·인증·사용 통제 대책 검증","IDS 규칙을 기동하는 트래픽과 IDS 모니터링 및 사고 처리 절차 검증","SL 4: RE(1) 정상 운영 동안에 보안 기능의 의도된 작동을 검증하는 역량 추가"],
+    tip:"SL 1·2·3: 기본 보안 기능 검증 / SL 4: RE(1) 정상 운영 중에도 검증 가능." },
+
+  { fr:3, cr:"CR 3.4",  name:"소프트웨어 및 정보 무결성",          en:"Software and information integrity",
+    sl:[1,2,3,4], re:"SL2: RE(1) 소프트웨어 및 정보의 진본성\nSL3: RE(1)(2) 무결성 위반 자동 알림", ctype:"all",
+    desc:"컴포넌트는 소프트웨어, 구성 및 기타 정보에 대한 무결성 점검을 수행 또는 지원하며, 이런 점검 결과를 기록하고 보고하거나 무결성 점검을 수행 또는 지원할 수 있는 시스템으로 통합되는 역량을 제공해야 한다.",
+    detail:["무결성 검증 방법: 공인되거나 권고된 무결성 메커니즘(암호 해시 등) 적용","SL 2: RE(1) 소프트웨어·구성·정보의 진본성 점검 수행 또는 지원, 결과 기록·보고","SL 3: RE(2) 무결성 점검 시 인가받지 않은 변경의 시도를 발견할 때 설정 가능한 개체로 자동 통지"],
+    tip:"SL 1: 기본 무결성 점검 / SL 2: RE(1) 진본성 추가 / SL 3·4: RE(2) 자동 알림 추가." },
+
+  { fr:3, cr:"CR 3.5",  name:"입력값 검증",                        en:"Input validation",
+    sl:[1,2,3,4], re:null, ctype:"all",
+    desc:"컴포넌트는 컴포넌트의 동작에 직접 영향을 미치는 외부 인터페이스를 통한 입력 또는 산업 공정 제어 입력으로 사용된 모든 입력 데이터의 구문, 길이 및 내용을 검증해야 한다.",
+    detail:["설정값 같은 입력 데이터의 유효한 구문을 점검하는 규칙","SQL 삽입 공격, 크로스사이트 스크립팅(XSS), 잘못된 형식의 패킷 방어","OWASP 코드 리뷰 가이드 같은 가이드라인 참조","강화 요구사항(RE) 없음"],
+    tip:"SL 1~4 모두 동일 요구사항. 강화 요구사항(RE) 없음." },
+
+  { fr:3, cr:"CR 3.6",  name:"결정론적 출력",                      en:"Deterministic output",
+    sl:[1,2,3,4], re:null, ctype:"all",
+    desc:"자동화 프로세스와 물리적 또는 논리적으로 연결된 컴포넌트는 컴포넌트 공급자가 정의한 정상 작업을 유지할 수 없다면 사전-결정된 상태로 출력을 설정하는 역량을 제공해야 한다.",
+    detail:["사전-결정된 출력 동작 선택지: 무-전원(무전원 상태로 실패), 보류(마지막으로 알려진 유효 값으로 실패), 고정(자산 소유자나 애플리케이션이 결정한 고정 값), 동작(현재 상태를 기반으로 실패)","강화 요구사항(RE) 없음"],
+    tip:"SL 1~4 모두 동일 요구사항. Fail-safe 설계 원칙 적용. 강화 요구사항(RE) 없음." },
+
+  { fr:3, cr:"CR 3.7",  name:"오류 처리",                          en:"Error handling",
+    sl:[1,2,3,4], re:null, ctype:"all",
+    desc:"컴포넌트는 IACS를 공격하는 공격자에 의해 악용될 수 있는 정보를 제공하지 않는 방식으로 오류 조건을 식별하고 처리해야 한다.",
+    detail:["공격자가 IACS를 공격하는데 도움을 줄 수 있는 오류 메시지의 좋은 예: 올바르지 않은 사용자 ID나 올바르지 않은 패스워드를 제시하는 피드백","OWASP 코드 리뷰 가이드 같은 가이드라인 참조","강화 요구사항(RE) 없음"],
+    tip:"SL 1~4 모두 동일 요구사항. 강화 요구사항(RE) 없음." },
+
+  { fr:3, cr:"CR 3.8",  name:"세션 무결성",                        en:"Session integrity",
+    sl:[2,3,4], re:null, ctype:"all",
+    desc:"컴포넌트는 a) 사용자 로그아웃 또는 다른 세션 종료 시에 세션 식별자를 무효화하는 역량, b) 각 세션에 유일 세션 식별자를 생성하고 시스템-생성 세션 식별자만을 인식하는 역량, c) 일반적으로 수용되는 난수 발생원으로 유일 세션 식별자를 생성하는 역량을 포함하는 메커니즘을 제공해야 한다.",
+    detail:["SL 1에서는 선택 제외","세션 하이재킹, 세션에 허위 정보 삽입 또는 재연 공격 방지","강화 요구사항(RE) 없음"],
+    tip:"SL 1에서는 선택 제외. SL 2~4에서 동일하게 적용. 강화 요구사항(RE) 없음." },
+
+  { fr:3, cr:"CR 3.9",  name:"감사 정보 보호",                     en:"Protection of audit information",
+    sl:[2,3,4], re:"SL4: RE(1) 일회용 기록 매체에 감사 레코드 저장", ctype:"all",
+    desc:"컴포넌트는 인가받지 않은 접근, 변경 및 삭제로부터 감사 정보, 감사 로그 및 감사 도구(만약 있다면)를 보호해야 한다.",
+    detail:["SL 1에서는 선택 제외","감사 정보: 감사 레코드, 감사 설정 및 감사 보고서 포함","변경 및 삭제에 대한 개선된 보호 메커니즘: 하드웨어 기반 일회용 기록 매체에 감사 정보 저장","SL 4: RE(1) 하드웨어 기반 일회용 기록 매체에 감사 레코드 저장하는 역량 추가"],
+    tip:"SL 1: 선택 제외 / SL 2·3: 기본 감사 정보 보호 / SL 4: RE(1) 하드웨어 기반 일회용 매체 저장 추가." },
+
+  { fr:3, cr:"CR 3.10", name:"업데이트 지원",                      en:"Support for updates",
+    sl:[99], re:null, ctype:"ndr_only",
+    desc:"업데이트 지원 요구사항은 컴포넌트별로 다르며, 12절부터 15절까지 각 특정 장치 유형별 요구사항에서 설명한다.",
+    detail:["공통 CR 아님 — 컴포넌트 유형별로 별도 정의","EDR 3.10, HDR 3.10, NDR 3.10 각각 적용"],
+    tip:"공통 CR이 아닙니다. 컴포넌트 유형별 요구사항(12~15절)을 참조하세요." },
+
+  { fr:3, cr:"CR 3.11", name:"물리적 탬퍼 억제 및 탐지",           en:"Physical tamper resistance and detection",
+    sl:[99], re:null, ctype:"ndr_only",
+    desc:"물리적 탬퍼 억제 및 탐지 요구사항은 컴포넌트별로 다르며, 12절부터 15절까지 각 특정 장치 유형별 요구사항에서 설명한다.",
+    detail:["공통 CR 아님 — 컴포넌트 유형별로 별도 정의","EDR 3.11, HDR 3.11, NDR 3.11 각각 적용"],
+    tip:"공통 CR이 아닙니다. 컴포넌트 유형별 요구사항(12~15절)을 참조하세요." },
+
+  { fr:3, cr:"CR 3.12", name:"제품 공급자의 신뢰기반(RoT) 구축",  en:"Provisioning product supplier roots of trust",
+    sl:[99], re:null, ctype:"ndr_only",
+    desc:"제품 공급자의 신뢰기반(RoT) 구축 요구사항은 컴포넌트별로 다르며, 12절부터 15절까지 각 특정 장치 유형별 요구사항에서 설명한다.",
+    detail:["공통 CR 아님 — 컴포넌트 유형별로 별도 정의","EDR 3.12, HDR 3.12, NDR 3.12 각각 적용"],
+    tip:"공통 CR이 아닙니다. 컴포넌트 유형별 요구사항(12~15절)을 참조하세요." },
+
+  { fr:3, cr:"CR 3.13", name:"자산 소유자 신뢰기반(RoT) 구축",    en:"Provisioning asset owner roots of trust",
+    sl:[99], re:null, ctype:"ndr_only",
+    desc:"자산 소유자 신뢰기반(RoT) 구축 요구사항은 컴포넌트별로 다르며, 12절부터 15절까지 각 특정 장치 유형별 요구사항에서 설명한다.",
+    detail:["공통 CR 아님 — 컴포넌트 유형별로 별도 정의","EDR 3.13, HDR 3.13, NDR 3.13 각각 적용"],
+    tip:"공통 CR이 아닙니다. 컴포넌트 유형별 요구사항(12~15절)을 참조하세요." },
+
+  { fr:3, cr:"CR 3.14", name:"부트 프로세스 무결성",               en:"Integrity of the boot process",
+    sl:[99], re:null, ctype:"ndr_only",
+    desc:"부트 프로세스 무결성 요구사항은 컴포넌트별로 다르며, 12절부터 15절까지 각 특정 장치 유형별 요구사항에서 설명한다.",
+    detail:["공통 CR 아님 — 컴포넌트 유형별로 별도 정의","EDR 3.14, HDR 3.14, NDR 3.14 각각 적용"],
+    tip:"공통 CR이 아닙니다. 컴포넌트 유형별 요구사항(12~15절)을 참조하세요." },
+
+  // ── FR 4 ─────────────────────────────────────────────────────────
+  { fr:4, cr:"CR 4.1",  name:"정보 기밀성",                        en:"Information confidentiality",
+    sl:[1,2,3,4], re:null, ctype:"all",
+    desc:"컴포넌트는 a) 명시적인 읽기 권한이 지원되는 유휴 정보의 기밀성 보호 역량 제공, b) IEC 62443-3-3 SR 4.1에 정의된 전송 중 정보의 기밀성 보호 지원 역량을 제공해야 한다.",
+    detail:["기밀성 보호는 8.5에서 상세한 요구사항을 제공함","기밀성 보호 적용 여부는 상황(context)에 따라 결정됨","강화 요구사항(RE) 없음"],
+    tip:"SL 1~4 모두 동일 요구사항. 강화 요구사항(RE) 없음." },
+
+  { fr:4, cr:"CR 4.2",  name:"정보 지속성",                        en:"Information persistence",
+    sl:[2,3,4], re:"SL3: RE(1) 공유 메모리 자원 삭제\nSL3: RE(2) 삭제 확인", ctype:"all",
+    desc:"컴포넌트는 활성 서비스(active service) 해제 및/또는 폐기되는 경우, 명확한 읽기 권한이 지원되는 모든 정보를 삭제하는 역량을 제공해야 한다.",
+    detail:["SL 1에서는 선택 제외","비휘발성 저장소에 저장된 인증 정보와 네트워크 설정 정보 또는 기타 인가되지 않거나 악의적 활동을 용이하게 하는 암호 정보 등 포함","SL 3: RE(1) 휘발성 공유 메모리 자원을 통한 인가되지 않거나 의도되지 않은 정보 전송 보호, RE(2) 정보 지우기가 발생했는지 확인 역량"],
+    tip:"SL 1: 선택 제외 / SL 2: 기본 정보 삭제 / SL 3·4: RE(1)(2) 공유 메모리·삭제 확인 추가." },
+
+  { fr:4, cr:"CR 4.3",  name:"암호(Cryptography) 사용",            en:"Use of cryptography",
+    sl:[1,2,3,4], re:null, ctype:"all",
+    desc:"암호가 필요한 경우, 컴포넌트는 국제적으로 인정되고 입증된 보안 사례(practices) 및 권고사항에 따라 암호학적 보안 메커니즘을 사용해야 한다.",
+    detail:["AES(Advance Encryption Standard)와 SHA(Secure Hash Algorithm) 같은 검증된 암호 및 해시 알고리즘 사용","표준을 기반으로 한 키 길이(key size) 활용","키 생성은 효율적인 난수 생성기 사용","구현 요구사항: FIPS 140-2, ISO/IEC 19790 참조","강화 요구사항(RE) 없음"],
+    tip:"SL 1~4 모두 동일 요구사항. 강화 요구사항(RE) 없음. AES, SHA 등 검증된 알고리즘만 사용." },
+
+  // ── FR 5 ─────────────────────────────────────────────────────────
+  { fr:5, cr:"CR 5.1",  name:"네트워크 분할(segmentation)",        en:"Network segmentation",
+    sl:[1,2,3,4], re:null, ctype:"all",
+    desc:"컴포넌트는 논리적 분할 및 중요도(criticality)에 기반하여 광범위한 네트워크 아키텍처를 지원하기 위해 필요하다면 구역과 통신경로를 지원하는 분할된 네트워크를 지원해야 한다.",
+    detail:["네트워크 분할 목적: 제어시스템으로의 네트워크 트래픽 유입(ingress) 또는 노출을 감소시키고 제어시스템으로부터의 네트워크 트래픽 유출(egress) 또는 확산을 감소","(물리적) 단방향 게이트웨이, 단일 상태기반 방화벽, DMZ 구성 사용가지 다양한 메커니즘 포함","강화 요구사항(RE) 없음"],
+    tip:"SL 1~4 모두 동일 요구사항. 강화 요구사항(RE) 없음." },
+
+  { fr:5, cr:"CR 5.2",  name:"구역 경계 보호",                     en:"Zone boundary protection",
+    sl:[99], re:null, ctype:"ndr_only",
+    desc:"구역 경계 보호 요구사항은 네트워크 컴포넌트가 적용 대상이고, 15절의 네트워크 장치 요구사항에서 설명한다.",
+    detail:["공통 CR 아님 — NDR(네트워크 장치 요구사항) 전용","NDR 5.2로 적용됨"],
+    tip:"공통 CR이 아닙니다. NDR 전용입니다. 15절 네트워크 장치 요구사항 참조." },
+
+  { fr:5, cr:"CR 5.3",  name:"범용 개인 대 개인(P2P) 통신 제한",  en:"General purpose person-to-person communication restrictions",
+    sl:[99], re:null, ctype:"ndr_only",
+    desc:"범용 개인 대 개인 통신 제한 요구사항은 네트워크 컴포넌트가 적용 대상이고, 15절의 네트워크 장치 요구사항에서 설명한다.",
+    detail:["공통 CR 아님 — NDR(네트워크 장치 요구사항) 전용","NDR 5.3으로 적용됨"],
+    tip:"공통 CR이 아닙니다. NDR 전용입니다. 15절 네트워크 장치 요구사항 참조." },
+
+  { fr:5, cr:"CR 5.4",  name:"애플리케이션 분할",                  en:"Application partitioning",
+    sl:[99], re:null, ctype:"na",
+    desc:"IEC 62443-3-3 SR 5.4와 관련된 컴포넌트 수준의 요구사항은 없다.",
+    detail:["컴포넌트 수준 요구사항 해당사항 없음","시스템 수준(Part 3-3)에서 다룸"],
+    tip:"컴포넌트 수준 요구사항 없음. IEC 62443-3-3(시스템 수준)에서 다루는 내용." },
+
+  // ── FR 6 ─────────────────────────────────────────────────────────
+  { fr:6, cr:"CR 6.1",  name:"감사 로그 접근성",                   en:"Audit log accessibility",
+    sl:[1,2,3,4], re:"SL3: RE(1) 감사 로그 프로그램 접근", ctype:"all",
+    desc:"컴포넌트는 인가된 사람 및/또는 도구가 읽기-전용으로 감사 로그에 접근하는 역량을 제공해야 한다.",
+    detail:["보안 사고의 사후 조사 중 감사 로그 필터링, 중복 정보 식별 및 제거, 검토 및 보고 활동 지원","감사 축약 및 보고서 생성은 별개의 정보 시스템에서 수행됨","SL 3·4: RE(1) API를 사용하거나 또는 중앙 시스템에 감사 레코드를 전송하는 방법으로 감사 레코드에 프로그램적 접근을 제공하는 역량 추가"],
+    tip:"SL 1·2: 기본 읽기-전용 접근 / SL 3·4: RE(1) API·중앙 시스템 프로그램적 접근 추가." },
+
+  { fr:6, cr:"CR 6.2",  name:"지속적인 모니터링",                  en:"Continuous monitoring",
+    sl:[2,3,4], re:null, ctype:"all",
+    desc:"컴포넌트는 적시에 보안 침해를 탐지, 특성화 및 보고하기 위해 일반적으로 수용된 보안 산업 사례 및 권고사항을 사용하여 지속적으로 모니터링하는 역량을 제공해야 한다.",
+    detail:["SL 1에서는 선택 제외","IDS, IPS, 악성코드 방지 메커니즘, 네트워크 모니터링 메커니즘 등 다양한 툴과 기법 활용","행위 기반 IDS/IPS를 포함하여 이런 도구와 기법도 정교해져야 함","강화 요구사항(RE) 없음"],
+    tip:"SL 1: 선택 제외 / SL 2~4: 동일 요구사항. 강화 요구사항(RE) 없음." },
+
+  // ── FR 7 ─────────────────────────────────────────────────────────
+  { fr:7, cr:"CR 7.1",  name:"서비스 거부(DoS) 방지",              en:"Denial of service protection",
+    sl:[1,2,3,4], re:"SL2: RE(1) 컴포넌트의 통신 부하 관리", ctype:"all",
+    desc:"컴포넌트는 DoS 이벤트로 인하여 성능 저하 모드로 운영될 때 필수 기능을 유지하는 역량을 제공해야 한다.",
+    detail:["DoS 공격 발생 시에도 안전 운전을 지속하는데 필요한 필수 기능 유지","컴포넌트 내의 보안 사고는 필수 기능 또는 다른 안전 관련 기능에 영향을 끼치지 않아야 함","SL 2: RE(1) DoS 이벤트로 인한 정보 및/또는 메시지 범람 유형의 영향을 완화하는 역량 추가"],
+    tip:"SL 1: 기본 DoS 방지 / SL 2·3·4: RE(1) 통신 부하 관리(메시지 범람 완화) 추가." },
+
+  { fr:7, cr:"CR 7.2",  name:"자원 관리",                          en:"Resource management",
+    sl:[1,2,3,4], re:null, ctype:"all",
+    desc:"컴포넌트는 자원 고갈을 방지하기 위해 보안 기능의 자원 사용을 제한하는 역량을 제공해야 한다.",
+    detail:["네트워크 분할 또는 우선순위 스킴: 우선순위가 낮은 소프트웨어 프로세스가 우선순위가 높은 소프트웨어 프로세스를 관리하는 제어시스템을 지연 또는 간섭하는 것을 방지","네트워크 스캔 개시, 운영체제의 패치 및/또는 안티바이러스 점검은 정상 운영에 심각한 방해를 유발 가능","강화 요구사항(RE) 없음"],
+    tip:"SL 1~4 모두 동일 요구사항. 강화 요구사항(RE) 없음." },
+
+  { fr:7, cr:"CR 7.3",  name:"제어시스템 백업",                    en:"Control system backup",
+    sl:[1,2,3,4], re:"SL2: RE(1) 백업 무결성 확인", ctype:"all",
+    desc:"컴포넌트는 컴포넌트 상태(사용자 수준 정보와 시스템 수준 정보)를 보호하기 위해 시스템 수준의 백업 작업에 참여하는 역량을 제공해야 한다. 백업 프로세스는 정상적인 컴포넌트 작동에 영향을 미치지 않아야 한다.",
+    detail:["백업 역량은 백업에 담긴 필수 정보의 보호를 지원하는 메커니즘을 포함해야 함","암호화된 백업 시 암호 키를 백업의 부분으로 포함하지 않고 별도로 안전한 백업 절차의 부분으로 암호 키를 백업하는 것이 중요","SL 2: RE(1) 정보 복구를 시작하기 전에 백업 정보의 무결성을 검증하는 역량 추가"],
+    tip:"SL 1: 기본 백업 / SL 2·3·4: RE(1) 백업 무결성 확인 추가." },
+
+  { fr:7, cr:"CR 7.4",  name:"제어시스템 복구 및 재구성(Reconstitution)", en:"Control system recovery and reconstitution",
+    sl:[1,2,3,4], re:null, ctype:"all",
+    desc:"컴포넌트는 중단 또는 장애/후에 알려진 안전한 상태로 복구 및 재구성하는 역량을 제공해야 한다.",
+    detail:["모든 시스템 파라미터(디폴트 또는 설정가능한)를 안전한 값으로 설정하고, 보안-필수 패치를 재설치하고, 보안 관련 구성 설정을 재설정, 시스템 문서와 운영 절차를 사용할 수 있으며, 컴포넌트를 재설치하고 설정된 값으로 구성, 가장 최신의 안전한 백업을 적재, 시스템을 완전하게 테스트하여 작동시키는 것 포함","강화 요구사항(RE) 없음"],
+    tip:"SL 1~4 모두 동일 요구사항. 강화 요구사항(RE) 없음." },
+
+  { fr:7, cr:"CR 7.5",  name:"비상 전원",                          en:"Emergency power",
+    sl:[99], re:null, ctype:"na",
+    desc:"IEC 62443-3-3 SR 7.5와 관련된 컴포넌트 수준의 요구사항은 없다.",
+    detail:["컴포넌트 수준 요구사항 해당사항 없음","시스템 수준(Part 3-3)에서 다룸"],
+    tip:"컴포넌트 수준 요구사항 없음. IEC 62443-3-3(시스템 수준)에서 다루는 내용." },
+
+  { fr:7, cr:"CR 7.6",  name:"네트워크 및 보안 구성 설정",         en:"Network and security configuration settings",
+    sl:[1,2,3,4], re:"SL3: RE(1) 현재 보안설정의 컴퓨터 판독가능 보고서 생성", ctype:"all",
+    desc:"컴포넌트는 제어시스템 공급자가 제공한 지침에 서술된 권고 네트워크와 보안 구성에 따른 설정 역량을 제공해야 한다. 컴포넌트는 현재 적용된 네트워크와 보안 구성 설정에 대한 인터페이스를 제공해야 한다.",
+    detail:["기본적으로 컴포넌트는 권고된 설정으로 구성되어야 함","컴포넌트가 승인 및/또는 권고된 구성 설정의 변경을 탐지하고 교정하기 위해 보안 정책 및 절차에 따라 구성 설정의 변경을 모니터링하고 통제할 수 있어야 함","SL 3·4: RE(1) 컴퓨터 판독가능 서식으로 현재 적용된 보안 설정을 목록화하는 보고서 생성 역량 추가"],
+    tip:"SL 1·2: 기본 구성 설정 / SL 3·4: RE(1) 컴퓨터 판독가능 보고서 생성 추가." },
+
+  { fr:7, cr:"CR 7.7",  name:"최소 기능",                          en:"Least functionality",
+    sl:[1,2,3,4], re:null, ctype:"all",
+    desc:"컴포넌트는 불필요한 기능, 포트, 프로토콜 및/또는 서비스의 사용을 구체적으로 제한하는 역량을 제공해야 한다.",
+    detail:["광범위하고 다양한 기능과 서비스를 제공하는 역량을 가지지만 제공되는 기능과 서비스 중 일부는 IACS 기능을 지원하는데 필요하지 않을 수 있음","기본적으로 기본 구성설정 이외의 기능은 비활성화 하여야 함","강화 요구사항(RE) 없음"],
+    tip:"SL 1~4 모두 동일 요구사항. 강화 요구사항(RE) 없음." },
+
+  { fr:7, cr:"CR 7.8",  name:"제어시스템 컴포넌트 목록",           en:"Control system component inventory",
+    sl:[2,3,4], re:null, ctype:"all",
+    desc:"컴포넌트는 IEC 62443-3-3 SR 7.8에 따라 제어시스템 컴포넌트 목록을 지원하는 역량을 제공해야 한다.",
+    detail:["SL 1에서는 선택 제외","컴포넌트는 자체 컴포넌트 세트 목록을 전체 제어시스템에 제공할 수 있음","IEC 62443-2-4 SP.06.02와 호환되는 전체 컴포넌트 목록을 확장하는 메커니즘 제공","강화 요구사항(RE) 없음"],
+    tip:"SL 1: 선택 제외 / SL 2~4: 동일하게 적용. 강화 요구사항(RE) 없음." }
+];
+
+const FR_META = {
+  1:{name:"식별 및 인증 통제", en:"IAC", c:"var(--fr1c)", bg:"var(--fr1bg)", mid:"var(--fr1mid)"},
+  2:{name:"사용 통제",         en:"UC",  c:"var(--fr2c)", bg:"var(--fr2bg)", mid:"var(--fr2mid)"},
+  3:{name:"시스템 무결성",     en:"SI",  c:"var(--fr3c)", bg:"var(--fr3bg)", mid:"var(--fr3mid)"},
+  4:{name:"데이터 기밀성",     en:"DC",  c:"var(--fr4c)", bg:"var(--fr4bg)", mid:"var(--fr4mid)"},
+  5:{name:"데이터 흐름 제한",  en:"RDF", c:"var(--fr5c)", bg:"var(--fr5bg)", mid:"var(--fr5mid)"},
+  6:{name:"이벤트 적시 대응",  en:"TRE", c:"var(--fr6c)", bg:"var(--fr6bg)", mid:"var(--fr6mid)"},
+  7:{name:"자원 가용성",       en:"RA",  c:"var(--fr7c)", bg:"var(--fr7bg)", mid:"var(--fr7mid)"}
+};
+const SL_CLS=["","sl1on","sl2on","sl3on","sl4on"];
+let activeFR='all', activeSL='all';
+
+function slLabel(row){
+  if(row.sl.includes(99)) return '<span style="font-size:11px;color:var(--g400)">유형별 별도</span>';
+  if(row.sl.length===0) return '<span style="font-size:11px;color:var(--g400)">해당없음</span>';
+  const min=row.sl[0];
+  const s=[];
+  for(let i=1;i<=4;i++){
+    const on=row.sl.includes(i);
+    s.push(`<div class="pip ${on?SL_CLS[i]:''}">${i}</div>`);
+  }
+  return `<div class="sl-pips">${s.join('')}</div>`;
+}
+function ctypeLabel(ctype){
+  if(ctype==='all') return '<span class="ctype all">전체</span>';
+  if(ctype==='ndr_only') return '<span class="ctype ndr">유형별</span>';
+  if(ctype==='na') return '<span style="font-size:11px;color:var(--g400)">없음</span>';
+  return ctype;
+}
+
+function renderTable(){
+  const tbody=document.getElementById('tbody');
+  const q=document.getElementById('search').value.toLowerCase();
+  tbody.innerHTML='';
+  let cnt=0, lastFR=null;
+  CRS.forEach((row,idx)=>{
+    if(activeFR!=='all' && row.fr!==activeFR) return;
+    // SL 필터
+    if(activeSL!=='all'){
+      if(row.sl.includes(99)||row.sl.length===0) return;
+      const minSL=row.sl[0];
+      if(minSL>parseInt(activeSL)) return;
+    }
+    // 검색 필터
+    const haystack=(row.cr+row.name+row.en+FR_META[row.fr].name).toLowerCase();
+    if(q && !haystack.includes(q)) return;
+
+    const fm=FR_META[row.fr];
+    // 그룹 헤더
+    if(row.fr!==lastFR && activeFR==='all'){
+      const gh=document.createElement('tr');
+      gh.className='grp-hdr';
+      gh.style.borderTopColor=fm.mid.replace('var(','').replace(')','');
+      gh.innerHTML=`<td colspan="6" style="color:${fm.c};background:${fm.bg}">FR ${row.fr} — ${fm.name} <span style="font-family:monospace;font-size:11px;opacity:.7">(${fm.en})</span></td>`;
+      tbody.appendChild(gh);
+      lastFR=row.fr;
+    }
+    cnt++;
+    const tr=document.createElement('tr');
+    tr.setAttribute('data-idx',idx);
+    tr.onclick=()=>openModal(idx);
+    const reHtml=row.re?`<span class="re-tag">RE</span>`:'';
+    const naHtml=(row.sl.includes(99)||row.sl.length===0)?`<span class="excl-tag">N/A</span>`:'';
+    tr.innerHTML=`
+      <td><span class="fr-badge" style="background:${fm.bg};color:${fm.c}"><span class="fr-dot" style="background:${fm.mid}"></span>FR ${row.fr}</span></td>
+      <td><span class="cr-code" style="background:${fm.bg};color:${fm.c}">${row.cr}</span>${naHtml}</td>
+      <td><div class="cr-name">${row.name}</div><div class="cr-name-en">${row.en}</div></td>
+      <td>${slLabel(row)}</td>
+      <td>${reHtml}</td>
+      <td>${ctypeLabel(row.ctype)}</td>`;
+    tbody.appendChild(tr);
+  });
+  document.getElementById('vis-cnt').textContent=cnt;
+  document.getElementById('no-res').style.display=cnt===0?'block':'none';
+}
+
+function setFR(fr){
+  activeFR=fr;
+  document.querySelectorAll('.fbtn').forEach(b=>{
+    b.classList.toggle('active',(fr==='all'&&b.classList.contains('all'))||(fr!=='all'&&parseInt(b.dataset.fr)===fr));
+  });
+  renderTable();
+}
+function setSL(sl){
+  activeSL=sl;
+  document.querySelectorAll('.slbtn').forEach((b,i)=>{
+    b.classList.toggle('active',sl==='all'?i===0:i===parseInt(sl));
+  });
+  renderTable();
+}
+function applyFilters(){ renderTable(); }
+
+function openModal(idx){
+  const row=CRS[idx];
+  const fm=FR_META[row.fr];
+  document.getElementById('m-tag').textContent=`FR ${row.fr} · ${fm.name} (${fm.en})`;
+  document.getElementById('m-tag').style.color=fm.c;
+  document.getElementById('m-title').textContent=`${row.cr}  ${row.name}`;
+  document.getElementById('m-title').style.color=fm.c;
+  document.getElementById('m-en').textContent=row.en;
+
+  let slHtml='<div class="sl-row">';
+  if(row.sl.includes(99)||row.sl.length===0){
+    slHtml+=`<span class="sl-chip" style="background:var(--g100);color:var(--g600)">컴포넌트 유형별 별도 정의 또는 해당사항 없음</span>`;
+  } else {
+    for(let s=1;s<=4;s++){
+      const on=row.sl.includes(s);
+      slHtml+=`<span class="sl-chip" style="${on?`background:${fm.bg};color:${fm.c}`:'background:var(--g100);color:var(--g400)'}">${on?'●':'○'} SL ${s}</span>`;
+    }
+  }
+  slHtml+='</div>';
+  if(row.sl[0]&&!row.sl.includes(99)){
+    slHtml+=`<div class="sl-note">SL ${row.sl[0]}부터 적용</div>`;
+  }
+  if(row.re){
+    slHtml+=`<div class="sl-note" style="margin-top:5px"><span style="color:#854F0B;font-weight:600">RE(강화 요구사항):</span> ${row.re.replace(/\n/g,'<br>')}</div>`;
+  }
+
+  let html=`
+    <div class="msec"><div class="msec-t">요구사항 내용</div><div class="mdesc">${row.desc}</div></div>
+    <div class="msec"><div class="msec-t">SL 적용 범위</div>${slHtml}</div>
+    <div class="msec"><div class="msec-t">세부 내용</div><ul class="mlist">${row.detail.map(d=>`<li>${d}</li>`).join('')}</ul></div>
+    <div class="msec"><div class="msec-t">실무 포인트</div><div class="mtip">${row.tip}</div></div>
+    <div class="src-note">출처: KS X IEC 62443-4-2:2019 (산업표준심의회, 2025년 8월 14일 개정) — 원문 직접 확인</div>`;
+  document.getElementById('m-bdy').innerHTML=html;
+  document.getElementById('bd').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function closeM(){ document.getElementById('bd').classList.remove('open'); document.body.style.overflow=''; }
+function closeBD(e){ if(e.target===document.getElementById('bd')) closeM(); }
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeM(); });
+
+renderTable();
+</script>
+</body>
+</html>
