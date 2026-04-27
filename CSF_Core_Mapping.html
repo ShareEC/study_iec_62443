@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NIST CSF 2.0 Core — Function · Category · Subcategory 전체 매핑</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --gv-c:#7a6e00; --gv-bg:#FEFEE8; --gv-mid:#d4c800;
+    --id-c:#185FA5; --id-bg:#E6F1FB; --id-mid:#85B7EB;
+    --pr-c:#534AB7; --pr-bg:#EEEDFE; --pr-mid:#AFA9EC;
+    --de-c:#854F0B; --de-bg:#FAEEDA; --de-mid:#EF9F27;
+    --rs-c:#A32D2D; --rs-bg:#FCEBEB; --rs-mid:#F09595;
+    --rc-c:#3B6D11; --rc-bg:#EAF3DE; --rc-mid:#97C459;
+    --g50:#F6F5F0; --g100:#ECEAE3; --g200:#D3D1C7;
+    --g400:#888780; --g600:#5F5E5A; --g800:#444441; --g900:#1a1a18;
+  }
+  body { font-family:'Noto Sans KR',-apple-system,'Apple SD Gothic Neo',sans-serif; background:var(--g50); min-height:100vh; padding:32px 16px 60px; color:var(--g900); }
+
+  header { max-width:1160px; margin:0 auto 24px; }
+  .hdr-top { display:flex; align-items:flex-end; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:14px; }
+  .mono { font-family:'IBM Plex Mono','Courier New',monospace; font-size:11px; letter-spacing:.12em; color:var(--g400); text-transform:uppercase; margin-bottom:5px; }
+  h1 { font-size:19px; font-weight:700; }
+  .sub { font-size:12px; color:var(--g400); margin-top:3px; }
+
+  .search-wrap { position:relative; min-width:180px; max-width:260px; flex:1; }
+  .search-wrap input { width:100%; padding:7px 12px 7px 30px; border:1.5px solid var(--g200); border-radius:8px; font-size:13px; background:#fff; color:var(--g900); outline:none; transition:border-color .15s; }
+  .search-wrap input:focus { border-color:var(--g400); }
+  .search-icon { position:absolute; left:9px; top:50%; transform:translateY(-50%); color:var(--g400); font-size:14px; pointer-events:none; }
+
+  .filter-bar { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-bottom:6px; }
+  .flabel { font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--g400); margin-right:2px; letter-spacing:.06em; }
+  .fbtn { border:1.5px solid var(--g200); border-radius:20px; padding:3px 11px; font-size:12px; font-weight:600; cursor:pointer; background:#fff; color:var(--g600); transition:all .15s; }
+  .fbtn:hover { border-color:var(--g400); }
+  .fbtn.active { color:#fff; border-color:transparent; }
+  .fbtn.all.active { background:var(--g800); }
+  .fbtn[data-fn="GV"].active{background:var(--gv-c)}
+  .fbtn[data-fn="ID"].active{background:var(--id-c)}
+  .fbtn[data-fn="PR"].active{background:var(--pr-c)}
+  .fbtn[data-fn="DE"].active{background:var(--de-c)}
+  .fbtn[data-fn="RS"].active{background:var(--rs-c)}
+  .fbtn[data-fn="RC"].active{background:var(--rc-c)}
+
+  .count-bar { max-width:1160px; margin:0 auto 10px; font-size:12px; color:var(--g400); font-family:'IBM Plex Mono',monospace; }
+  .count-bar strong { color:var(--g800); }
+
+  .tbl-wrap { max-width:1160px; margin:0 auto; background:#fff; border-radius:12px; border:1px solid var(--g200); overflow:hidden; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  thead th { background:var(--g800); color:#fff; padding:10px 14px; text-align:left; font-size:11px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; font-family:'IBM Plex Mono',monospace; white-space:nowrap; border-right:1px solid rgba(255,255,255,.08); }
+  thead th:last-child { border-right:none; }
+  tbody tr { border-bottom:1px solid var(--g100); transition:background .1s; cursor:pointer; }
+  tbody tr:last-child { border-bottom:none; }
+  tbody tr:hover { background:var(--g50); }
+  td { padding:9px 14px; vertical-align:middle; }
+
+  .fn-badge { display:inline-flex; align-items:center; gap:5px; padding:3px 8px 3px 6px; border-radius:6px; font-size:11px; font-weight:700; white-space:nowrap; font-family:'IBM Plex Mono',monospace; }
+  .fn-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+  .cat-code { font-family:'IBM Plex Mono',monospace; font-size:12px; font-weight:600; padding:2px 7px; border-radius:5px; white-space:nowrap; }
+  .sc-code { font-family:'IBM Plex Mono',monospace; font-size:11px; font-weight:600; padding:1px 5px; border-radius:4px; white-space:nowrap; margin-right:4px; }
+  .sc-name { font-weight:500; color:var(--g900); line-height:1.4; }
+  .sc-name-en { font-size:11px; color:var(--g400); margin-top:1px; font-style:italic; }
+
+  .grp-hdr td { padding:7px 14px; font-size:12px; font-weight:700; border-top:2px solid; background:var(--g50); cursor:default; }
+  .grp-hdr:hover { background:var(--g50) !important; }
+
+  .no-results { text-align:center; padding:48px 20px; color:var(--g400); font-size:14px; display:none; }
+
+  /* 모달 */
+  .backdrop { display:none; position:fixed; inset:0; background:rgba(26,26,24,.52); z-index:200; align-items:center; justify-content:center; padding:20px; }
+  .backdrop.open { display:flex; }
+  .modal { background:#fff; border-radius:14px; width:100%; max-width:600px; max-height:86vh; overflow-y:auto; box-shadow:0 24px 60px rgba(0,0,0,.2); animation:mIn .18s ease; }
+  @keyframes mIn { from{opacity:0;transform:scale(.96) translateY(6px)} to{opacity:1;transform:none} }
+  .mhdr { padding:20px 20px 14px; border-bottom:1px solid var(--g100); display:flex; justify-content:space-between; align-items:flex-start; gap:10px; position:sticky; top:0; background:#fff; border-radius:14px 14px 0 0; z-index:1; }
+  .mtag { font-family:'IBM Plex Mono',monospace; font-size:10px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; margin-bottom:4px; }
+  .mtitle { font-size:17px; font-weight:700; line-height:1.3; }
+  .men { font-size:11px; color:var(--g400); margin-top:2px; font-style:italic; }
+  .mclose { background:var(--g100); border:none; width:30px; height:30px; border-radius:7px; cursor:pointer; font-size:15px; color:var(--g400); flex-shrink:0; display:flex; align-items:center; justify-content:center; transition:background .15s; }
+  .mclose:hover { background:var(--g200); }
+  .mbdy { padding:18px 20px 26px; }
+  .msec { margin-bottom:16px; }
+  .msec:last-child { margin-bottom:0; }
+  .msec-t { font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--g400); margin-bottom:7px; font-family:'IBM Plex Mono',monospace; }
+  .mdesc { font-size:13.5px; line-height:1.75; color:#2C2C2A; }
+  .mlist { list-style:none; display:flex; flex-direction:column; gap:6px; }
+  .mlist li { font-size:13px; line-height:1.6; color:#3d3d3a; padding-left:14px; position:relative; }
+  .mlist li::before { content:"·"; position:absolute; left:0; color:var(--g400); }
+  .mtip { background:var(--g50); border-left:3px solid var(--g200); border-radius:0 6px 6px 0; padding:9px 13px; font-size:13px; line-height:1.65; color:var(--g800); }
+  .src-note { font-size:11px; color:var(--g400); font-family:'IBM Plex Mono',monospace; background:var(--g50); padding:6px 10px; border-radius:6px; margin-top:12px; }
+  .fn-chip { display:inline-block; padding:3px 10px; border-radius:6px; font-size:12px; font-weight:600; font-family:'IBM Plex Mono',monospace; margin-bottom:6px; }
+  .cat-chip { display:inline-block; padding:2px 8px; border-radius:5px; font-size:12px; font-weight:600; font-family:'IBM Plex Mono',monospace; margin-bottom:4px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hdr-top">
+    <div>
+      <div class="mono">NIST CSWP 29 · February 26, 2024 · Appendix A</div>
+      <h1>CSF 2.0 Core — Function · Category · Subcategory 전체 매핑</h1>
+      <div class="sub">6개 Function · 22개 Category · 106개 Subcategory · 행 클릭 시 상세 설명</div>
+    </div>
+    <div class="search-wrap">
+      <span class="search-icon">⌕</span>
+      <input type="text" id="search" placeholder="ID, 카테고리, 키워드..." oninput="applyFilters()">
+    </div>
+  </div>
+  <div class="filter-bar">
+    <span class="flabel">Function:</span>
+    <button class="fbtn all active" onclick="setFN('all')">전체</button>
+    <button class="fbtn" data-fn="GV" onclick="setFN('GV')">🟡 GOVERN</button>
+    <button class="fbtn" data-fn="ID" onclick="setFN('ID')">🔵 IDENTIFY</button>
+    <button class="fbtn" data-fn="PR" onclick="setFN('PR')">🟣 PROTECT</button>
+    <button class="fbtn" data-fn="DE" onclick="setFN('DE')">🟠 DETECT</button>
+    <button class="fbtn" data-fn="RS" onclick="setFN('RS')">🔴 RESPOND</button>
+    <button class="fbtn" data-fn="RC" onclick="setFN('RC')">🟢 RECOVER</button>
+  </div>
+</header>
+
+<div class="count-bar">전체 <strong id="vis-cnt">0</strong>개 Subcategory 표시 중</div>
+
+<div class="tbl-wrap">
+  <table id="main-tbl">
+    <thead>
+      <tr>
+        <th style="width:90px">Function</th>
+        <th style="width:100px">Category</th>
+        <th style="width:110px">Subcategory ID</th>
+        <th>내용 (한국어)</th>
+        <th style="width:180px">영문 원문 (요약)</th>
+      </tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
+  <div class="no-results" id="no-res">검색 결과가 없습니다</div>
+</div>
+
+<!-- 모달 -->
+<div class="backdrop" id="bd" onclick="closeBD(event)">
+  <div class="modal">
+    <div class="mhdr">
+      <div>
+        <div class="mtag" id="m-tag"></div>
+        <div class="mtitle" id="m-title"></div>
+        <div class="men" id="m-en"></div>
+      </div>
+      <button class="mclose" onclick="closeM()">✕</button>
+    </div>
+    <div class="mbdy" id="m-bdy"></div>
+  </div>
+</div>
+
+<script>
+const FN_META = {
+  GV:{emoji:"🟡",name:"GOVERN",name_kr:"거버넌스",desc:"사이버보안 리스크 관리 전략·기대·정책이 수립·커뮤니케이션·모니터링됨",c:"var(--gv-c)",bg:"var(--gv-bg)",mid:"var(--gv-mid)"},
+  ID:{emoji:"🔵",name:"IDENTIFY",name_kr:"식별",desc:"조직의 현재 사이버보안 리스크가 이해됨",c:"var(--id-c)",bg:"var(--id-bg)",mid:"var(--id-mid)"},
+  PR:{emoji:"🟣",name:"PROTECT",name_kr:"보호",desc:"조직의 사이버보안 리스크를 관리하기 위한 보호 수단이 사용됨",c:"var(--pr-c)",bg:"var(--pr-bg)",mid:"var(--pr-mid)"},
+  DE:{emoji:"🟠",name:"DETECT",name_kr:"탐지",desc:"가능한 사이버보안 공격 및 침해가 발견·분석됨",c:"var(--de-c)",bg:"var(--de-bg)",mid:"var(--de-mid)"},
+  RS:{emoji:"🔴",name:"RESPOND",name_kr:"대응",desc:"탐지된 사이버보안 사고에 관한 조치가 취해짐",c:"var(--rs-c)",bg:"var(--rs-bg)",mid:"var(--rs-mid)"},
+  RC:{emoji:"🟢",name:"RECOVER",name_kr:"복구",desc:"사이버보안 사고로 영향받은 자산 및 운영이 복원됨",c:"var(--rc-c)",bg:"var(--rc-bg)",mid:"var(--rc-mid)"}
+};
+
+const CAT_META = {
+  "GV.OC":{name:"Organizational Context",name_kr:"조직적 맥락"},
+  "GV.RM":{name:"Risk Management Strategy",name_kr:"리스크 관리 전략"},
+  "GV.RR":{name:"Roles, Responsibilities, and Authorities",name_kr:"역할·책임·권한"},
+  "GV.PO":{name:"Policy",name_kr:"정책"},
+  "GV.OV":{name:"Oversight",name_kr:"감독"},
+  "GV.SC":{name:"Cybersecurity Supply Chain Risk Management",name_kr:"공급망 리스크 관리"},
+  "ID.AM":{name:"Asset Management",name_kr:"자산 관리"},
+  "ID.RA":{name:"Risk Assessment",name_kr:"리스크 평가"},
+  "ID.IM":{name:"Improvement",name_kr:"개선"},
+  "PR.AA":{name:"Identity Management, Authentication, and Access Control",name_kr:"신원 관리·인증·접근 제어"},
+  "PR.AT":{name:"Awareness and Training",name_kr:"인식 및 교육"},
+  "PR.DS":{name:"Data Security",name_kr:"데이터 보안"},
+  "PR.PS":{name:"Platform Security",name_kr:"플랫폼 보안"},
+  "PR.IR":{name:"Technology Infrastructure Resilience",name_kr:"기술 인프라 탄력성"},
+  "DE.CM":{name:"Continuous Monitoring",name_kr:"지속적 모니터링"},
+  "DE.AE":{name:"Adverse Event Analysis",name_kr:"부정적 이벤트 분석"},
+  "RS.MA":{name:"Incident Management",name_kr:"사고 관리"},
+  "RS.AN":{name:"Incident Analysis",name_kr:"사고 분석"},
+  "RS.CO":{name:"Incident Response Reporting and Communication",name_kr:"사고 대응 보고·커뮤니케이션"},
+  "RS.MI":{name:"Incident Mitigation",name_kr:"사고 완화"},
+  "RC.RP":{name:"Incident Recovery Plan Execution",name_kr:"복구 계획 실행"},
+  "RC.CO":{name:"Incident Recovery Communication",name_kr:"복구 커뮤니케이션"}
+};
+
+const SCS = [
+  // GOVERN
+  {fn:"GV",cat:"GV.OC",id:"GV.OC-01",kr:"조직의 임무가 이해되고 사이버보안 리스크 관리에 반영됨",en:"Organizational mission informs cybersecurity risk management",tip:"임무(Mission) 이해가 사이버보안 활동 우선순위의 출발점"},
+  {fn:"GV",cat:"GV.OC",id:"GV.OC-02",kr:"내·외부 이해관계자의 필요와 기대가 이해되고 사이버보안 리스크 관리에 고려됨",en:"Stakeholder needs and expectations understood and considered",tip:"이해관계자 범위: 이사회·임원·규제기관·고객·공급자 등 포함"},
+  {fn:"GV",cat:"GV.OC",id:"GV.OC-03",kr:"사이버보안 관련 법적·규제적·계약적 요구사항(프라이버시 및 시민 자유 포함)이 이해되고 관리됨",en:"Legal, regulatory, and contractual cybersecurity requirements understood",tip:"법령·규정·계약·SLA 등 외부 의무사항 전체를 포괄"},
+  {fn:"GV",cat:"GV.OC",id:"GV.OC-04",kr:"외부 이해관계자가 조직에 의존하는 중요 목표·역량·서비스가 이해되고 커뮤니케이션됨",en:"Critical objectives and services for external stakeholders communicated",tip:"외부 의존도 파악 → 서비스 중단 시 파급 영향 예측"},
+  {fn:"GV",cat:"GV.OC",id:"GV.OC-05",kr:"조직이 의존하는 결과·역량·서비스가 이해되고 커뮤니케이션됨",en:"Outcomes and services the organization depends on communicated",tip:"조직의 내부 의존성(인프라·공급자·서비스) 파악"},
+
+  {fn:"GV",cat:"GV.RM",id:"GV.RM-01",kr:"리스크 관리 목표가 조직 이해관계자에 의해 수립·동의됨",en:"Risk management objectives established and agreed to",tip:"목표는 경영 전략과 연동하여 이해관계자 합의 필수"},
+  {fn:"GV",cat:"GV.RM",id:"GV.RM-02",kr:"리스크 욕구(appetite) 및 허용 수준(tolerance) 진술이 수립·커뮤니케이션·유지됨",en:"Risk appetite and tolerance statements established and maintained",tip:"Appetite: 감수할 리스크 총량 / Tolerance: 편차 허용 범위"},
+  {fn:"GV",cat:"GV.RM",id:"GV.RM-03",kr:"사이버보안 리스크 관리 활동 및 결과가 엔터프라이즈 리스크 관리(ERM) 프로세스에 포함됨",en:"Cybersecurity risk management included in enterprise risk management",tip:"사이버 리스크를 재무·운영·법적 리스크와 동등하게 통합"},
+  {fn:"GV",cat:"GV.RM",id:"GV.RM-04",kr:"적절한 리스크 대응 옵션을 설명하는 전략적 방향이 수립·커뮤니케이션됨",en:"Strategic direction for risk response options established",tip:"완화·이전·회피·수용 등 대응 방향을 사전에 정의"},
+  {fn:"GV",cat:"GV.RM",id:"GV.RM-05",kr:"공급자 및 서드파티 리스크를 포함한 사이버보안 리스크를 위한 조직 전체 커뮤니케이션 라인이 수립됨",en:"Organization-wide communication lines for cybersecurity risks established",tip:"공급망 리스크 포함, 상하향 정보 흐름 채널 확보"},
+  {fn:"GV",cat:"GV.RM",id:"GV.RM-06",kr:"사이버보안 리스크를 계산·문서화·분류·우선순위화하는 표준화된 방법이 수립·커뮤니케이션됨",en:"Standardized method for calculating, documenting, and prioritizing risks established",tip:"일관된 리스크 정량화 방법론(FAIR, CVSS 등) 채택"},
+  {fn:"GV",cat:"GV.RM",id:"GV.RM-07",kr:"전략적 기회(긍정적 리스크)가 특성화되고 조직의 사이버보안 리스크 논의에 포함됨",en:"Strategic opportunities (positive risks) included in cybersecurity risk discussions",tip:"리스크 관리를 비용 절감·수익 창출 기회로도 활용"},
+
+  {fn:"GV",cat:"GV.RR",id:"GV.RR-01",kr:"조직 리더십은 사이버보안 리스크에 책임·책무를 지며 리스크 인식·윤리적·지속적 개선 문화를 조성함",en:"Leadership responsible and accountable for cybersecurity risk; fosters risk-aware culture",tip:"이사회·CEO 레벨의 사이버보안 책임 명확화"},
+  {fn:"GV",cat:"GV.RR",id:"GV.RR-02",kr:"사이버보안 리스크 관리와 관련된 역할·책임·권한이 수립·커뮤니케이션·이해·시행됨",en:"Roles, responsibilities, and authorities for cybersecurity risk management established",tip:"CISO·SOC·IT·OT 담당자별 역할 분리 및 명문화"},
+  {fn:"GV",cat:"GV.RR",id:"GV.RR-03",kr:"사이버보안 리스크 전략·역할·책임·정책에 상응하는 적절한 자원이 할당됨",en:"Adequate resources allocated commensurate with cybersecurity risk strategy",tip:"예산·인력·도구를 리스크 수준에 비례하여 배분"},
+  {fn:"GV",cat:"GV.RR",id:"GV.RR-04",kr:"사이버보안이 인적 자원 관행에 포함됨",en:"Cybersecurity included in human resources practices",tip:"채용·온보딩·교육·퇴직 처리 등 HR 전반에 보안 통합"},
+
+  {fn:"GV",cat:"GV.PO",id:"GV.PO-01",kr:"사이버보안 리스크 관리 정책이 조직적 맥락·전략·우선순위에 기반하여 수립되고 커뮤니케이션·시행됨",en:"Policy for managing cybersecurity risks established, communicated, and enforced",tip:"정책은 전략에서 파생되고 절차·표준으로 구체화됨"},
+  {fn:"GV",cat:"GV.PO",id:"GV.PO-02",kr:"사이버보안 리스크 관리 정책이 변화를 반영하여 검토·업데이트·커뮤니케이션·시행됨",en:"Policy reviewed, updated, and enforced to reflect changes",tip:"위협·기술·법규 변화 시 정책 주기적 검토 필수"},
+
+  {fn:"GV",cat:"GV.OV",id:"GV.OV-01",kr:"사이버보안 리스크 관리 전략 결과가 전략 및 방향을 알리고 조정하기 위해 검토됨",en:"Cybersecurity risk management strategy outcomes reviewed to inform strategy",tip:"KPI·KRI를 통해 전략 효과성 지속 점검"},
+  {fn:"GV",cat:"GV.OV",id:"GV.OV-02",kr:"사이버보안 리스크 관리 전략이 조직 요구사항 및 리스크의 포괄성 보장을 위해 검토·조정됨",en:"Strategy reviewed and adjusted to ensure coverage of requirements and risks",tip:"변화하는 환경에 맞게 전략 적시 조정"},
+  {fn:"GV",cat:"GV.OV",id:"GV.OV-03",kr:"조직의 사이버보안 리스크 관리 성과가 필요한 조정을 위해 평가·검토됨",en:"Organizational cybersecurity risk management performance evaluated",tip:"감사·검토·평가를 통해 성과 측정 및 개선"},
+
+  {fn:"GV",cat:"GV.SC",id:"GV.SC-01",kr:"사이버보안 공급망 리스크 관리 프로그램·전략·목표·정책·프로세스가 수립되고 이해관계자의 동의를 받음",en:"C-SCRM program, strategy, objectives, policies, and processes established",tip:"C-SCRM: Cybersecurity Supply Chain Risk Management의 공식 출발점"},
+  {fn:"GV",cat:"GV.SC",id:"GV.SC-02",kr:"공급자·고객·파트너를 위한 사이버보안 역할·책임이 수립·커뮤니케이션되고 내·외부적으로 조율됨",en:"Cybersecurity roles for suppliers, customers, and partners established",tip:"계약서에 사이버보안 역할 명시 및 상호 확인"},
+  {fn:"GV",cat:"GV.SC",id:"GV.SC-03",kr:"사이버보안 공급망 리스크 관리가 사이버보안 및 ERM, 리스크 평가, 개선 프로세스에 통합됨",en:"C-SCRM integrated into cybersecurity and enterprise risk management",tip:"공급망 리스크를 전사 리스크 관리 체계에 내재화"},
+  {fn:"GV",cat:"GV.SC",id:"GV.SC-04",kr:"공급자가 파악되고 중요도에 따라 우선순위화됨",en:"Suppliers known and prioritized by criticality",tip:"티어(Tier) 분류로 중요 공급자 집중 관리"},
+  {fn:"GV",cat:"GV.SC",id:"GV.SC-05",kr:"공급망 사이버보안 리스크를 다루기 위한 요구사항이 수립·우선순위화되고 계약 등에 통합됨",en:"C-SCRM requirements integrated into contracts and agreements with suppliers",tip:"조달 계약에 보안 요구사항 명문화(SLA·감사권·사고보고 등)"},
+  {fn:"GV",cat:"GV.SC",id:"GV.SC-06",kr:"공식적인 공급자 또는 서드파티 관계 진입 전에 리스크 감소를 위한 계획 및 실사(due diligence)가 수행됨",en:"Planning and due diligence performed before entering supplier relationships",tip:"계약 전 보안 실사(기술·재무·법규 준수) 수행"},
+  {fn:"GV",cat:"GV.SC",id:"GV.SC-07",kr:"공급자·제품·서비스·기타 서드파티가 제기하는 리스크가 관계 전체에 걸쳐 이해·기록·평가·대응·모니터링됨",en:"Risks from suppliers and third parties monitored throughout the relationship",tip:"초기 평가에 그치지 않고 계약 기간 내내 지속 모니터링"},
+  {fn:"GV",cat:"GV.SC",id:"GV.SC-08",kr:"관련 공급자 및 기타 서드파티가 사고 계획·대응·복구 활동에 포함됨",en:"Relevant suppliers included in incident planning, response, and recovery",tip:"공급자와 IR 테이블탑 훈련 공동 수행 권고"},
+  {fn:"GV",cat:"GV.SC",id:"GV.SC-09",kr:"공급망 보안 실천이 사이버보안 및 ERM 프로그램에 통합되고 수명주기 전반 모니터링됨",en:"Supply chain security practices integrated and monitored throughout product lifecycle",tip:"제품·서비스 생애주기 전체(개발~폐기)에 걸쳐 적용"},
+  {fn:"GV",cat:"GV.SC",id:"GV.SC-10",kr:"사이버보안 공급망 리스크 관리 계획에 파트너십 또는 서비스 계약 종료 후 발생하는 활동에 대한 조항이 포함됨",en:"C-SCRM plans include provisions for activities after conclusion of partnership",tip:"계약 종료 시 데이터 반환·삭제·접근 권한 회수 등 포함"},
+
+  // IDENTIFY
+  {fn:"ID",cat:"ID.AM",id:"ID.AM-01",kr:"조직이 관리하는 하드웨어 인벤토리가 유지됨",en:"Inventories of hardware managed by the organization are maintained",tip:"IT·OT·IoT 모든 물리 자산 포함, 정기 갱신 필수"},
+  {fn:"ID",cat:"ID.AM",id:"ID.AM-02",kr:"조직이 관리하는 소프트웨어·서비스·시스템 인벤토리가 유지됨",en:"Inventories of software, services, and systems maintained",tip:"SBOM(소프트웨어 구성 명세) 포함 권장"},
+  {fn:"ID",cat:"ID.AM",id:"ID.AM-03",kr:"조직의 승인된 네트워크 통신 및 내·외부 네트워크 데이터 흐름의 표현이 유지됨",en:"Authorized network communication and data flows maintained",tip:"데이터 흐름 다이어그램 → 이상 탐지·포렌식에 활용"},
+  {fn:"ID",cat:"ID.AM",id:"ID.AM-04",kr:"공급자가 제공하는 서비스의 인벤토리가 유지됨",en:"Inventories of services provided by suppliers are maintained",tip:"클라우드·SaaS·외주 서비스 포함, GV.SC와 연동"},
+  {fn:"ID",cat:"ID.AM",id:"ID.AM-05",kr:"자산이 분류·중요도·자원·임무 영향에 따라 우선순위화됨",en:"Assets prioritized based on classification, criticality, resources, and mission impact",tip:"중요도 분류 → 보안 투자 우선순위 결정의 핵심"},
+  {fn:"ID",cat:"ID.AM",id:"ID.AM-07",kr:"지정된 데이터 유형에 대한 데이터 및 해당 메타데이터 인벤토리가 유지됨",en:"Inventories of data and corresponding metadata for designated data types maintained",tip:"개인정보·민감정보·지식재산 등 데이터 유형별 관리"},
+  {fn:"ID",cat:"ID.AM",id:"ID.AM-08",kr:"시스템·하드웨어·소프트웨어·서비스·데이터가 수명 주기 전체에 걸쳐 관리됨",en:"Systems, hardware, software, services, and data managed throughout life cycles",tip:"조달→운영→폐기까지 전 주기 보안 고려"},
+
+  {fn:"ID",cat:"ID.RA",id:"ID.RA-01",kr:"자산의 취약점이 식별·검증·기록됨",en:"Vulnerabilities in assets are identified, validated, and recorded",tip:"정기 취약점 스캐닝 + CVE·NVD 모니터링"},
+  {fn:"ID",cat:"ID.RA",id:"ID.RA-02",kr:"사이버 위협 인텔리전스가 정보 공유 포럼 및 소스로부터 수신됨",en:"Cyber threat intelligence received from information sharing forums and sources",tip:"ISAC·CISA·벤더 보안 권고 등 외부 인텔리전스 수신"},
+  {fn:"ID",cat:"ID.RA",id:"ID.RA-03",kr:"조직에 대한 내·외부 위협이 식별·기록됨",en:"Internal and external threats to the organization identified and recorded",tip:"내부자 위협·공급망 위협·APT 등 다양한 위협 소스 포함"},
+  {fn:"ID",cat:"ID.RA",id:"ID.RA-04",kr:"위협이 취약점을 악용하는 잠재적 영향 및 가능성이 식별·기록됨",en:"Potential impacts and likelihoods of threats exploiting vulnerabilities identified",tip:"리스크 = 위협 × 취약점 × 영향 → 정량화 기반 의사결정"},
+  {fn:"ID",cat:"ID.RA",id:"ID.RA-05",kr:"위협·취약점·가능성·영향이 고유 리스크 이해 및 리스크 대응 우선순위화에 사용됨",en:"Threats, vulnerabilities, likelihoods, and impacts used to understand inherent risk",tip:"리스크 레지스터 기반으로 대응 우선순위 결정"},
+  {fn:"ID",cat:"ID.RA",id:"ID.RA-06",kr:"리스크 대응이 선택·우선순위화·계획·추적·커뮤니케이션됨",en:"Risk responses chosen, prioritized, planned, tracked, and communicated",tip:"POA&M(조치 계획·마일스톤) 형식으로 관리"},
+  {fn:"ID",cat:"ID.RA",id:"ID.RA-07",kr:"변경 및 예외가 관리되고 리스크 영향에 대해 평가·기록·추적됨",en:"Changes and exceptions managed, assessed for risk impact, recorded, and tracked",tip:"변경 관리(Change Management)와 리스크 평가 연동"},
+  {fn:"ID",cat:"ID.RA",id:"ID.RA-08",kr:"취약점 공개를 수신·분석·대응하기 위한 프로세스가 수립됨",en:"Processes for receiving, analyzing, and responding to vulnerability disclosures established",tip:"CVD(조율된 취약점 공개) 정책 및 내부 프로세스 구비"},
+  {fn:"ID",cat:"ID.RA",id:"ID.RA-09",kr:"하드웨어 및 소프트웨어의 진위성 및 무결성이 획득·사용 전에 평가됨",en:"Authenticity and integrity of hardware and software assessed prior to acquisition",tip:"위조품·변조품 방지 → 공급망 보안의 핵심"},
+  {fn:"ID",cat:"ID.RA",id:"ID.RA-10",kr:"중요 공급자가 획득 전에 평가됨",en:"Critical suppliers assessed prior to acquisition",tip:"보안 설문·감사·인증 확인 등을 통한 사전 검증"},
+
+  {fn:"ID",cat:"ID.IM",id:"ID.IM-01",kr:"개선사항이 평가를 통해 식별됨",en:"Improvements identified from evaluations",tip:"내부 감사·성숙도 평가 결과를 개선 input으로 활용"},
+  {fn:"ID",cat:"ID.IM",id:"ID.IM-02",kr:"공급자 및 관련 서드파티와 협력하여 수행된 것을 포함한 보안 테스트 및 훈련을 통해 개선사항이 식별됨",en:"Improvements identified from security tests and exercises, including with suppliers",tip:"침투 테스트·BCP 훈련·레드팀 연습 결과 반영"},
+  {fn:"ID",cat:"ID.IM",id:"ID.IM-03",kr:"운영 프로세스·절차·활동 실행을 통해 개선사항이 식별됨",en:"Improvements identified from execution of operational processes and activities",tip:"일상적 운영 중 발견된 문제점을 개선 사이클에 투입"},
+  {fn:"ID",cat:"ID.IM",id:"ID.IM-04",kr:"운영에 영향을 미치는 사고 대응 계획 및 기타 사이버보안 계획이 수립·커뮤니케이션·유지·개선됨",en:"Incident response and other cybersecurity plans established, maintained, and improved",tip:"IRP·BCP·DRP를 정기적으로 검토·갱신·훈련"},
+
+  // PROTECT
+  {fn:"PR",cat:"PR.AA",id:"PR.AA-01",kr:"승인된 사용자·서비스·하드웨어의 신원 및 자격증명이 조직에 의해 관리됨",en:"Identities and credentials for authorized users, services, and hardware managed",tip:"IAM 시스템을 통한 생애주기 관리(발급→갱신→폐기)"},
+  {fn:"PR",cat:"PR.AA",id:"PR.AA-02",kr:"신원이 상호작용 맥락에 따라 검증되고 자격증명에 결합됨",en:"Identities proofed and bound to credentials based on context of interactions",tip:"등록 시 본인 확인 강도를 리스크 수준에 맞게 조정"},
+  {fn:"PR",cat:"PR.AA",id:"PR.AA-03",kr:"사용자·서비스·하드웨어가 인증됨",en:"Users, services, and hardware are authenticated",tip:"MFA 적용, 기기 인증서·API 키 관리 포함"},
+  {fn:"PR",cat:"PR.AA",id:"PR.AA-04",kr:"신원 주장(assertion)이 보호·전달·검증됨",en:"Identity assertions protected, conveyed, and verified",tip:"SAML·OIDC·JWT 등 페더레이션 프로토콜의 보안 구성"},
+  {fn:"PR",cat:"PR.AA",id:"PR.AA-05",kr:"접근 권한·자격·승인이 정책에 정의되고 관리·시행·검토됨 (최소 권한 및 직무 분리 원칙 포함)",en:"Access permissions managed, enforced, and reviewed; least privilege and separation of duties",tip:"정기 접근 권한 검토(Access Review) 수행 권고"},
+  {fn:"PR",cat:"PR.AA",id:"PR.AA-06",kr:"자산에 대한 물리적 접근이 리스크에 상응하여 관리·모니터링·시행됨",en:"Physical access to assets managed, monitored, and enforced commensurate with risk",tip:"데이터센터·서버실·OT 현장의 물리 접근 통제"},
+
+  {fn:"PR",cat:"PR.AT",id:"PR.AT-01",kr:"인원이 사이버보안 리스크를 염두에 두고 일반 작업을 수행하는 지식과 기술을 갖출 수 있도록 인식 및 교육이 제공됨",en:"Personnel provided awareness and training for general tasks with cybersecurity in mind",tip:"전직원 필수 인식 교육(피싱·소셜엔지니어링·기본 보안 등)"},
+  {fn:"PR",cat:"PR.AT",id:"PR.AT-02",kr:"전문 역할의 개인이 사이버보안 리스크를 염두에 두고 관련 작업을 수행하는 지식과 기술을 갖출 수 있도록 인식 및 교육이 제공됨",en:"Individuals in specialized roles provided role-specific awareness and training",tip:"CISO·SOC·개발자·OT 엔지니어 등 역할별 심화 교육"},
+
+  {fn:"PR",cat:"PR.DS",id:"PR.DS-01",kr:"저장 중 데이터(data-at-rest)의 기밀성·무결성·가용성이 보호됨",en:"Confidentiality, integrity, and availability of data-at-rest protected",tip:"암호화(AES-256)·접근 통제·백업으로 저장 데이터 보호"},
+  {fn:"PR",cat:"PR.DS",id:"PR.DS-02",kr:"전송 중 데이터(data-in-transit)의 기밀성·무결성·가용성이 보호됨",en:"Confidentiality, integrity, and availability of data-in-transit protected",tip:"TLS 1.2+·VPN·암호화 채널로 전송 중 데이터 보호"},
+  {fn:"PR",cat:"PR.DS",id:"PR.DS-10",kr:"사용 중 데이터(data-in-use)의 기밀성·무결성·가용성이 보호됨",en:"Confidentiality, integrity, and availability of data-in-use protected",tip:"메모리 보호·TEE·컨피덴셜 컴퓨팅 등 사용 중 보호"},
+  {fn:"PR",cat:"PR.DS",id:"PR.DS-11",kr:"데이터 백업이 생성·보호·유지·테스트됨",en:"Backups of data created, protected, maintained, and tested",tip:"3-2-1 백업 원칙 + 정기 복구 테스트 수행"},
+
+  {fn:"PR",cat:"PR.PS",id:"PR.PS-01",kr:"설정 관리 실천이 수립·적용됨",en:"Configuration management practices established and applied",tip:"기준선(Baseline) 설정 → 변경 탐지 → 일탈 수정"},
+  {fn:"PR",cat:"PR.PS",id:"PR.PS-02",kr:"소프트웨어가 리스크에 상응하여 유지·교체·제거됨",en:"Software maintained, replaced, and removed commensurate with risk",tip:"EoL 소프트웨어 식별·패치·교체 계획 수립"},
+  {fn:"PR",cat:"PR.PS",id:"PR.PS-03",kr:"하드웨어가 리스크에 상응하여 유지·교체·제거됨",en:"Hardware maintained, replaced, and removed commensurate with risk",tip:"EoL 하드웨어 폐기 시 데이터 완전 삭제 포함"},
+  {fn:"PR",cat:"PR.PS",id:"PR.PS-04",kr:"로그 레코드가 생성되고 지속적 모니터링에 사용 가능하게 됨",en:"Log records generated and made available for continuous monitoring",tip:"SIEM 연동 가능한 표준 포맷(Syslog·CEF 등)으로 생성"},
+  {fn:"PR",cat:"PR.PS",id:"PR.PS-05",kr:"승인되지 않은 소프트웨어의 설치 및 실행이 방지됨",en:"Installation and execution of unauthorized software prevented",tip:"애플리케이션 허용 목록(Allowlist) 정책 적용"},
+  {fn:"PR",cat:"PR.PS",id:"PR.PS-06",kr:"보안 소프트웨어 개발 실천이 통합되고 SDLC 전반 모니터링됨",en:"Secure software development practices integrated and monitored throughout SDLC",tip:"SAST·DAST·SCA·코드 리뷰를 개발 파이프라인에 통합"},
+
+  {fn:"PR",cat:"PR.IR",id:"PR.IR-01",kr:"네트워크 및 환경이 무단 논리적 접근 및 사용으로부터 보호됨",en:"Networks and environments protected from unauthorized logical access and usage",tip:"방화벽·NAC·네트워크 세분화·제로 트러스트 적용"},
+  {fn:"PR",cat:"PR.IR",id:"PR.IR-02",kr:"조직의 기술 자산이 환경적 위협으로부터 보호됨",en:"Organization's technology assets protected from environmental threats",tip:"화재·홍수·온도·전원 이중화 등 물리적 환경 보호"},
+  {fn:"PR",cat:"PR.IR",id:"PR.IR-03",kr:"정상 및 역경 상황에서 탄력성 요구사항을 달성하기 위한 메커니즘이 구현됨",en:"Mechanisms implemented to achieve resilience requirements in normal and adverse situations",tip:"이중화·Failover·graceful degradation 설계"},
+  {fn:"PR",cat:"PR.IR",id:"PR.IR-04",kr:"가용성 보장을 위한 적절한 자원 용량이 유지됨",en:"Adequate resource capacity to ensure availability maintained",tip:"용량 계획(Capacity Planning) 및 성능 모니터링"},
+
+  // DETECT
+  {fn:"DE",cat:"DE.CM",id:"DE.CM-01",kr:"잠재적 부정적 이벤트를 찾기 위해 네트워크 및 네트워크 서비스가 모니터링됨",en:"Networks and network services monitored to find potentially adverse events",tip:"IDS·IPS·NDR 솔루션을 통한 네트워크 트래픽 모니터링"},
+  {fn:"DE",cat:"DE.CM",id:"DE.CM-02",kr:"잠재적 부정적 이벤트를 찾기 위해 물리적 환경이 모니터링됨",en:"Physical environment monitored to find potentially adverse events",tip:"CCTV·물리 센서·출입 기록 이상 탐지"},
+  {fn:"DE",cat:"DE.CM",id:"DE.CM-03",kr:"잠재적 부정적 이벤트를 찾기 위해 인원 활동 및 기술 사용이 모니터링됨",en:"Personnel activity and technology usage monitored to find potentially adverse events",tip:"UBA·DLP를 통한 내부자 위협·이상 행위 탐지"},
+  {fn:"DE",cat:"DE.CM",id:"DE.CM-06",kr:"잠재적 부정적 이벤트를 찾기 위해 외부 서비스 제공자 활동 및 서비스가 모니터링됨",en:"External service provider activities and services monitored to find potentially adverse events",tip:"클라우드·SaaS·외주 서비스 활동 로그 수집·분석"},
+  {fn:"DE",cat:"DE.CM",id:"DE.CM-09",kr:"잠재적 부정적 이벤트를 찾기 위해 컴퓨팅 HW·SW·런타임 환경·데이터가 모니터링됨",en:"Computing hardware, software, runtime environments, and data monitored",tip:"EDR·XDR을 통한 엔드포인트 행위 모니터링"},
+
+  {fn:"DE",cat:"DE.AE",id:"DE.AE-02",kr:"잠재적 부정적 이벤트가 관련 활동을 더 잘 이해하기 위해 분석됨",en:"Potentially adverse events analyzed to better understand associated activities",tip:"이벤트 컨텍스트 분석으로 오탐 감소·정탐 향상"},
+  {fn:"DE",cat:"DE.AE",id:"DE.AE-03",kr:"여러 소스에서 정보가 상관관계 분석됨",en:"Information correlated from multiple sources",tip:"SIEM을 통한 다중 소스 로그 상관관계 분석"},
+  {fn:"DE",cat:"DE.AE",id:"DE.AE-04",kr:"부정적 이벤트의 예상 영향 및 범위가 이해됨",en:"Estimated impact and scope of adverse events understood",tip:"영향 범위 파악 → 억제 전략 수립의 전제조건"},
+  {fn:"DE",cat:"DE.AE",id:"DE.AE-06",kr:"부정적 이벤트에 관한 정보가 승인된 직원 및 도구에 제공됨",en:"Information on adverse events provided to authorized staff and tools",tip:"SOC 팀·자동화 플레이북으로 신속한 정보 전달"},
+  {fn:"DE",cat:"DE.AE",id:"DE.AE-07",kr:"사이버 위협 인텔리전스 및 기타 맥락 정보가 분석에 통합됨",en:"Cyber threat intelligence and other contextual information integrated into analysis",tip:"TIP(위협 인텔리전스 플랫폼)을 SIEM·SOAR와 연동"},
+  {fn:"DE",cat:"DE.AE",id:"DE.AE-08",kr:"부정적 이벤트가 정의된 사고 기준에 충족할 때 사고가 선언됨",en:"Incidents declared when adverse events meet the defined incident criteria",tip:"사고 선언 기준(임계치·심각도)을 명확히 사전 정의"},
+
+  // RESPOND
+  {fn:"RS",cat:"RS.MA",id:"RS.MA-01",kr:"사고가 선언되면 관련 서드파티와 협력하여 사고 대응 계획이 실행됨",en:"Incident response plan executed in coordination with relevant third parties",tip:"외부 MSSP·CERT·규제기관 등과의 협력 채널 사전 구축"},
+  {fn:"RS",cat:"RS.MA",id:"RS.MA-02",kr:"사고 보고서가 분류(triage)·검증됨",en:"Incident reports are triaged and validated",tip:"오탐·중복·실제 사고를 빠르게 구분하는 트리아지 프로세스"},
+  {fn:"RS",cat:"RS.MA",id:"RS.MA-03",kr:"사고가 분류·우선순위화됨",en:"Incidents are categorized and prioritized",tip:"심각도(Critical/High/Medium/Low) 분류 기준 사전 정의"},
+  {fn:"RS",cat:"RS.MA",id:"RS.MA-04",kr:"필요에 따라 사고가 상부 보고(escalate/elevate)됨",en:"Incidents escalated or elevated as needed",tip:"에스컬레이션 기준과 보고 라인을 IRP에 명시"},
+  {fn:"RS",cat:"RS.MA",id:"RS.MA-05",kr:"사고 복구 시작을 위한 기준이 적용됨",en:"Criteria for initiating incident recovery applied",tip:"억제·근절 완료 후 복구 개시 기준을 명확히 정의"},
+
+  {fn:"RS",cat:"RS.AN",id:"RS.AN-03",kr:"사고 중 발생한 일과 사고의 근본 원인을 규명하기 위해 분석이 수행됨",en:"Analysis performed to establish what took place and root cause of incident",tip:"RCA(근본원인분석)를 통해 재발 방지 대책 도출"},
+  {fn:"RS",cat:"RS.AN",id:"RS.AN-06",kr:"조사 중 수행된 조치가 기록되고, 기록의 무결성 및 출처가 보존됨",en:"Actions during investigation recorded; integrity and provenance of records preserved",tip:"법정 증거 능력 확보를 위한 체인 오브 커스터디 유지"},
+  {fn:"RS",cat:"RS.AN",id:"RS.AN-07",kr:"사고 데이터 및 메타데이터가 수집되고, 무결성 및 출처가 보존됨",en:"Incident data and metadata collected; integrity and provenance preserved",tip:"포렌식 이미징·타임라인 분석을 위한 원본 보존"},
+  {fn:"RS",cat:"RS.AN",id:"RS.AN-08",kr:"사고의 규모가 추정·검증됨",en:"Incident's magnitude estimated and validated",tip:"영향받은 시스템·데이터·사용자 수 등 범위 정량화"},
+
+  {fn:"RS",cat:"RS.CO",id:"RS.CO-02",kr:"내·외부 이해관계자에게 사고가 통지됨",en:"Internal and external stakeholders notified of incidents",tip:"법령상 보고 의무(72시간 이내 등) 준수, 내부 보고 라인 포함"},
+  {fn:"RS",cat:"RS.CO",id:"RS.CO-03",kr:"지정된 내·외부 이해관계자와 정보가 공유됨",en:"Information shared with designated internal and external stakeholders",tip:"공유 정보 범위·민감도·채널을 사전에 정의"},
+
+  {fn:"RS",cat:"RS.MI",id:"RS.MI-01",kr:"사고가 억제(contain)됨",en:"Incidents are contained",tip:"격리·차단·계정 잠금 등으로 확산 방지"},
+  {fn:"RS",cat:"RS.MI",id:"RS.MI-02",kr:"사고가 근절(eradicate)됨",en:"Incidents are eradicated",tip:"악성코드 제거·취약점 패치·변경된 자격증명 재설정 등"},
+
+  // RECOVER
+  {fn:"RC",cat:"RC.RP",id:"RC.RP-01",kr:"IR 프로세스에서 시작되면 사고 대응 계획의 복구 부분이 실행됨",en:"Recovery portion of incident response plan executed once initiated",tip:"복구 개시 기준 충족 확인 후 복구 계획 실행"},
+  {fn:"RC",cat:"RC.RP",id:"RC.RP-02",kr:"복구 조치가 선택·범위화·우선순위화·수행됨",en:"Recovery actions selected, scoped, prioritized, and performed",tip:"RTO·RPO 기준으로 복구 우선순위 결정"},
+  {fn:"RC",cat:"RC.RP",id:"RC.RP-03",kr:"복원에 사용하기 전에 백업 및 기타 복원 자산의 무결성이 검증됨",en:"Integrity of backups and other restoration assets verified before using",tip:"랜섬웨어 오염 여부 등 백업 무결성 사전 확인 필수"},
+  {fn:"RC",cat:"RC.RP",id:"RC.RP-04",kr:"사고 후 운영 규범 수립을 위해 중요 임무 기능 및 사이버보안 리스크 관리가 고려됨",en:"Critical mission functions and cybersecurity risk management considered to establish post-incident norms",tip:"복구 후 보안 수준이 사고 전보다 높아야 함"},
+  {fn:"RC",cat:"RC.RP",id:"RC.RP-05",kr:"복원된 자산의 무결성이 검증되고, 시스템 및 서비스가 복원되며, 정상 운영 상태가 확인됨",en:"Integrity of restored assets verified; systems and services restored; normal operating status confirmed",tip:"복구 후 기능 테스트·보안 검증 수행 후 운영 복귀"},
+  {fn:"RC",cat:"RC.RP",id:"RC.RP-06",kr:"기준에 따라 사고 복구 종료가 선언되고, 사고 관련 문서화가 완료됨",en:"End of incident recovery declared based on criteria; incident-related documentation completed",tip:"사후 검토(Post-Incident Review) 보고서 작성 포함"},
+
+  {fn:"RC",cat:"RC.CO",id:"RC.CO-03",kr:"복구 활동 및 운영 역량 복원 진척도가 지정된 내·외부 이해관계자에게 커뮤니케이션됨",en:"Recovery activities and progress communicated to designated internal and external stakeholders",tip:"정기 상황 업데이트로 이해관계자 신뢰 유지"},
+  {fn:"RC",cat:"RC.CO",id:"RC.CO-04",kr:"사고 복구에 관한 공개 업데이트가 승인된 방법 및 메시지를 사용하여 공유됨",en:"Public updates on incident recovery shared using approved methods and messaging",tip:"홍보팀·법무팀 검토 후 공식 채널(웹사이트·보도자료 등)로 공개"}
+];
+
+let activeFN = 'all';
+
+function getColors(fn) {
+  const m = FN_META[fn];
+  return { c: m.c, bg: m.bg, mid: m.mid };
+}
+
+function renderTable() {
+  const tbody = document.getElementById('tbody');
+  const q = document.getElementById('search').value.toLowerCase();
+  tbody.innerHTML = '';
+  let cnt = 0, lastCat = null;
+
+  SCS.forEach((row, idx) => {
+    if (activeFN !== 'all' && row.fn !== activeFN) return;
+    const haystack = (row.id + row.kr + row.en + row.cat + row.fn).toLowerCase();
+    if (q && !haystack.includes(q)) return;
+
+    const fm = FN_META[row.fn];
+    const cm = CAT_META[row.cat];
+
+    // 카테고리 그룹 헤더
+    if (row.cat !== lastCat) {
+      const gh = document.createElement('tr');
+      gh.className = 'grp-hdr';
+      gh.style.borderTopColor = fm.mid.replace(/var\((.*)\)/, (_, v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim() || '#ccc');
+      gh.innerHTML = `<td colspan="5" style="background:${fm.bg};color:${fm.c}">
+        <span style="font-family:monospace;font-size:11px;margin-right:8px">${row.cat}</span>
+        ${cm.name_kr} <span style="font-family:monospace;font-size:11px;opacity:.6;margin-left:6px">${cm.name}</span>
+      </td>`;
+      tbody.appendChild(gh);
+      lastCat = row.cat;
+    }
+
+    cnt++;
+    const tr = document.createElement('tr');
+    tr.setAttribute('data-idx', idx);
+    tr.onclick = () => openModal(idx);
+    tr.innerHTML = `
+      <td><span class="fn-badge" style="background:${fm.bg};color:${fm.c}">
+        <span class="fn-dot" style="background:${fm.mid}"></span>${row.fn}
+      </span></td>
+      <td><span class="cat-code" style="background:${fm.bg};color:${fm.c}">${row.cat}</span></td>
+      <td><span class="sc-code" style="background:${fm.bg};color:${fm.c}">${row.id}</span></td>
+      <td><div class="sc-name">${row.kr}</div></td>
+      <td><div class="sc-name-en">${row.en}</div></td>`;
+    tbody.appendChild(tr);
+  });
+
+  document.getElementById('vis-cnt').textContent = cnt;
+  document.getElementById('no-res').style.display = cnt === 0 ? 'block' : 'none';
+}
+
+function setFN(fn) {
+  activeFN = fn;
+  document.querySelectorAll('.fbtn').forEach(b => {
+    b.classList.toggle('active',
+      (fn === 'all' && b.classList.contains('all')) ||
+      (fn !== 'all' && b.dataset.fn === fn)
+    );
+  });
+  renderTable();
+}
+
+function applyFilters() { renderTable(); }
+
+function openModal(idx) {
+  const row = SCS[idx];
+  const fm = FN_META[row.fn];
+  const cm = CAT_META[row.cat];
+
+  document.getElementById('m-tag').textContent = `${row.fn} — ${fm.name_kr} (${fm.name})`;
+  document.getElementById('m-tag').style.color = fm.c;
+  document.getElementById('m-title').textContent = `${row.id}`;
+  document.getElementById('m-title').style.color = fm.c;
+  document.getElementById('m-en').textContent = row.en;
+
+  const html = `
+    <div class="msec">
+      <div class="msec-t">Function</div>
+      <span class="fn-chip" style="background:${fm.bg};color:${fm.c}">${fm.emoji} ${fm.name} (${fm.name_kr})</span>
+      <div style="font-size:13px;color:var(--g600);margin-top:6px">${fm.desc}</div>
+    </div>
+    <div class="msec">
+      <div class="msec-t">Category</div>
+      <span class="cat-chip" style="background:${fm.bg};color:${fm.c}">${row.cat}</span>
+      <span style="font-size:13px;color:var(--g800);margin-left:6px">${cm.name_kr}</span>
+      <div style="font-size:11px;color:var(--g400);margin-top:3px;font-style:italic">${cm.name}</div>
+    </div>
+    <div class="msec">
+      <div class="msec-t">Subcategory 결과 (한국어)</div>
+      <div class="mdesc">${row.kr}</div>
+    </div>
+    <div class="msec">
+      <div class="msec-t">Subcategory Outcome (영문 원문)</div>
+      <div class="mdesc" style="font-style:italic;color:var(--g600)">${row.en}</div>
+    </div>
+    <div class="msec">
+      <div class="msec-t">실무 포인트</div>
+      <div class="mtip">${row.tip}</div>
+    </div>
+    <div class="src-note">출처: NIST CSWP 29 — The NIST Cybersecurity Framework (CSF) 2.0, Appendix A (February 26, 2024)</div>`;
+
+  document.getElementById('m-bdy').innerHTML = html;
+  document.getElementById('bd').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeM() { document.getElementById('bd').classList.remove('open'); document.body.style.overflow = ''; }
+function closeBD(e) { if (e.target === document.getElementById('bd')) closeM(); }
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeM(); });
+
+renderTable();
+</script>
+</body>
+</html>
