@@ -1,0 +1,3981 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>산출물 의존 관계도 - Interactive Hover Map</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --panel: rgba(255, 255, 255, 0.92);
+      --border: #cbd5e1;
+      --text: #0f172a;
+      --muted: #64748b;
+      --focus: #dc2626;
+      --target: #f59e0b;
+      --incoming: #0ea5e9;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif;
+    }
+
+    .app {
+      min-height: 100vh;
+      display: grid;
+      grid-template-rows: 58px 1fr;
+    }
+
+    .toolbar {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: grid;
+      grid-template-columns: minmax(360px, 1fr) minmax(330px, max-content) minmax(320px, 520px);
+      gap: 14px;
+      align-items: center;
+      height: 58px;
+      min-height: 58px;
+      max-height: 58px;
+      padding: 0 14px;
+      overflow: hidden;
+      border-bottom: 1px solid var(--border);
+      background: var(--panel);
+      backdrop-filter: blur(8px);
+    }
+
+    .toolbar > div {
+      min-width: 0;
+    }
+
+    .toolbar > div:first-child {
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    .toolbar strong {
+      font-size: 14px;
+      white-space: nowrap;
+    }
+
+    .toolbar .hint {
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .controls {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: nowrap;
+      overflow: hidden;
+      white-space: nowrap;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .controls span {
+      min-width: 0;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    .controls label {
+      display: inline-flex;
+      gap: 6px;
+      align-items: center;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .status {
+      min-width: 0;
+      max-width: 100%;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      color: #334155;
+      font-size: 12px;
+      text-align: right;
+    }
+
+    .viewport {
+      overflow: auto;
+      padding: 16px;
+      scrollbar-gutter: stable both-edges;
+    }
+
+    .canvas {
+      min-width: 1200px;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: #ffffff;
+      box-shadow: 0 8px 28px rgba(15, 23, 42, 0.08);
+      overflow: hidden;
+      contain: layout paint;
+    }
+
+    svg.dependency-map {
+      display: block;
+      width: 100%;
+      height: auto;
+      user-select: none;
+    }
+
+    svg.dependency-map text { pointer-events: none; }
+    svg.dependency-map rect.interactive-node { pointer-events: none; }
+    svg.dependency-map rect.step-container { pointer-events: none; }
+    svg.dependency-map .hover-layer { pointer-events: all; }
+    svg.dependency-map .hover-hit {
+      fill: transparent;
+      stroke: transparent;
+      opacity: 0;
+      pointer-events: all;
+      cursor: pointer;
+    }
+
+    svg.dependency-map .dimmed { opacity: 0.11 !important; }
+    svg.dependency-map .dimmed-weak { opacity: 0.20 !important; }
+
+    svg.dependency-map .node-source {
+      opacity: 1 !important;
+      stroke: var(--focus) !important;
+      stroke-width: 3.6 !important;
+      filter: drop-shadow(0 0 4px rgba(220, 38, 38, 0.55));
+    }
+
+    svg.dependency-map .node-target {
+      opacity: 1 !important;
+      stroke: var(--target) !important;
+      stroke-width: 3.2 !important;
+      filter: drop-shadow(0 0 4px rgba(245, 158, 11, 0.50));
+    }
+
+    svg.dependency-map .node-incoming {
+      opacity: 1 !important;
+      stroke: var(--incoming) !important;
+      stroke-width: 2.8 !important;
+      filter: drop-shadow(0 0 3px rgba(14, 165, 233, 0.45));
+    }
+
+    svg.dependency-map .label-source,
+    svg.dependency-map .label-target,
+    svg.dependency-map .label-incoming {
+      opacity: 1 !important;
+      font-weight: 800 !important;
+      fill: #0f172a !important;
+    }
+
+    svg.dependency-map .edge-focus {
+      opacity: 1 !important;
+      stroke: var(--edge-highlight, var(--focus)) !important;
+      stroke-width: 4.0 !important;
+      filter: var(--edge-filter, drop-shadow(0 0 4px rgba(220, 38, 38, 0.55)));
+    }
+
+    svg.dependency-map .edge-incoming {
+      opacity: 1 !important;
+      stroke: var(--edge-highlight, var(--incoming)) !important;
+      stroke-width: 3.2 !important;
+      filter: var(--edge-filter, drop-shadow(0 0 3px rgba(14, 165, 233, 0.45)));
+    }
+
+    svg.dependency-map .dot-focus {
+      opacity: 1 !important;
+      fill: var(--edge-highlight, var(--focus)) !important;
+      r: 4;
+      filter: var(--edge-filter, drop-shadow(0 0 4px rgba(220, 38, 38, 0.55)));
+    }
+
+    svg.dependency-map .dot-incoming {
+      opacity: 1 !important;
+      fill: var(--edge-highlight, var(--incoming)) !important;
+      r: 3.5;
+    }
+
+    @media (max-width: 1100px) {
+      .app { grid-template-rows: 64px 1fr; }
+      .toolbar {
+        grid-template-columns: minmax(280px, 1fr) minmax(220px, 300px) minmax(220px, 320px);
+        height: 64px;
+        min-height: 64px;
+        max-height: 64px;
+      }
+      .toolbar .hint { display: none; }
+      .canvas { min-width: 1000px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="toolbar">
+      <div>
+        <strong>산출물 의존 관계도</strong>
+        <span class="hint"> · 박스에 마우스를 올리면 관련 화살표와 목적지가 강조됩니다.</span>
+      </div>
+      <div class="controls">
+        <label><input id="incomingToggle" type="checkbox" /> 입력 화살표도 표시</label>
+        <span>화살표: 출발 스탭 색상 · 주황: 목적지 · 파랑: 입력</span>
+      </div>
+      <div id="status" class="status">대기 중</div>
+    </div>
+
+    <div class="viewport">
+      <div class="canvas">
+        <svg id="diagramSvg" class="dependency-map"
+   width="1728"
+   height="1000"
+   viewBox="0 0 1728 1000"
+   version="1.1"
+   id="svg195"
+   sodipodi:docname="a2_deliverable_dependency_v4.svg"
+   inkscape:version="1.4.2 (f4327f4, 2025-05-13)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview195"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="1.2537003"
+     inkscape:cx="747.78637"
+     inkscape:cy="383.26544"
+     inkscape:window-width="3840"
+     inkscape:window-height="2054"
+     inkscape:window-x="-11"
+     inkscape:window-y="744"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg195" />
+  <defs
+     id="defs13">
+    <marker
+       id="ar0"
+       markerWidth="7"
+       markerHeight="7"
+       refX="6"
+       refY="3.2"
+       orient="auto"
+       markerUnits="strokeWidth">
+      <path
+         d="M 0,0 7,3.2 0,6.4 Z"
+         fill="#16a34a"
+         id="path1" />
+    </marker>
+    <marker
+       id="ar1"
+       markerWidth="7"
+       markerHeight="7"
+       refX="6"
+       refY="3.2"
+       orient="auto"
+       markerUnits="strokeWidth">
+      <path
+         d="M 0,0 7,3.2 0,6.4 Z"
+         fill="#0891b2"
+         id="path2" />
+    </marker>
+    <marker
+       id="ar2"
+       markerWidth="7"
+       markerHeight="7"
+       refX="6"
+       refY="3.2"
+       orient="auto"
+       markerUnits="strokeWidth">
+      <path
+         d="M 0,0 7,3.2 0,6.4 Z"
+         fill="#2563eb"
+         id="path3" />
+    </marker>
+    <marker
+       id="ar3"
+       markerWidth="7"
+       markerHeight="7"
+       refX="6"
+       refY="3.2"
+       orient="auto"
+       markerUnits="strokeWidth">
+      <path
+         d="M 0,0 7,3.2 0,6.4 Z"
+         fill="#4f46e5"
+         id="path4" />
+    </marker>
+    <marker
+       id="ar4"
+       markerWidth="7"
+       markerHeight="7"
+       refX="6"
+       refY="3.2"
+       orient="auto"
+       markerUnits="strokeWidth">
+      <path
+         d="M 0,0 7,3.2 0,6.4 Z"
+         fill="#7c3aed"
+         id="path5" />
+    </marker>
+    <marker
+       id="ar5"
+       markerWidth="7"
+       markerHeight="7"
+       refX="6"
+       refY="3.2"
+       orient="auto"
+       markerUnits="strokeWidth">
+      <path
+         d="M 0,0 7,3.2 0,6.4 Z"
+         fill="#c026d3"
+         id="path6" />
+    </marker>
+    <marker
+       id="ar6"
+       markerWidth="7"
+       markerHeight="7"
+       refX="6"
+       refY="3.2"
+       orient="auto"
+       markerUnits="strokeWidth">
+      <path
+         d="M 0,0 7,3.2 0,6.4 Z"
+         fill="#db2777"
+         id="path7" />
+    </marker>
+    <marker
+       id="ar7"
+       markerWidth="7"
+       markerHeight="7"
+       refX="6"
+       refY="3.2"
+       orient="auto"
+       markerUnits="strokeWidth">
+      <path
+         d="M 0,0 7,3.2 0,6.4 Z"
+         fill="#e11d48"
+         id="path8" />
+    </marker>
+    <marker
+       id="ar8"
+       markerWidth="7"
+       markerHeight="7"
+       refX="6"
+       refY="3.2"
+       orient="auto"
+       markerUnits="strokeWidth">
+      <path
+         d="M 0,0 7,3.2 0,6.4 Z"
+         fill="#ea580c"
+         id="path9" />
+    </marker>
+    <marker
+       id="ar9"
+       markerWidth="7"
+       markerHeight="7"
+       refX="6"
+       refY="3.2"
+       orient="auto"
+       markerUnits="strokeWidth">
+      <path
+         d="M 0,0 7,3.2 0,6.4 Z"
+         fill="#ca8a04"
+         id="path10" />
+    </marker>
+    <marker
+       id="ar10"
+       markerWidth="7"
+       markerHeight="7"
+       refX="6"
+       refY="3.2"
+       orient="auto"
+       markerUnits="strokeWidth">
+      <path
+         d="M 0,0 7,3.2 0,6.4 Z"
+         fill="#0d9488"
+         id="path11" />
+    </marker>
+    <marker
+       id="ar11"
+       markerWidth="7"
+       markerHeight="7"
+       refX="6"
+       refY="3.2"
+       orient="auto"
+       markerUnits="strokeWidth">
+      <path
+         d="M 0,0 7,3.2 0,6.4 Z"
+         fill="#475569"
+         id="path12" />
+    </marker>
+    <marker
+       id="arF"
+       markerWidth="8"
+       markerHeight="8"
+       refX="6.5"
+       refY="3.5999999"
+       orient="auto"
+       markerUnits="strokeWidth">
+      <path
+         d="M 0,0 8,3.6 0,7.2 Z"
+         fill="#dc2626"
+         id="path13" />
+    </marker>
+    <marker
+       id="ar1-0"
+       markerWidth="7"
+       markerHeight="7"
+       refX="6"
+       refY="3.2"
+       orient="auto"
+       markerUnits="strokeWidth">
+      <path
+         d="M 0,0 7,3.2 0,6.4 Z"
+         fill="#0891b2"
+         id="path2-9" />
+    </marker>
+    <marker
+       id="arFocus70"
+       markerWidth="4.48"
+       markerHeight="4.48"
+       refX="4.08"
+       refY="2.048"
+       orient="auto"
+       markerUnits="strokeWidth">
+      <path
+         d="M 0,0 4.48,2.048 0,4.096 Z"
+         fill="#dc2626"
+         id="pathFocus70" />
+    </marker>
+    <marker
+       id="arIncoming70"
+       markerWidth="3.92"
+       markerHeight="3.92"
+       refX="3.56"
+       refY="1.792"
+       orient="auto"
+       markerUnits="strokeWidth">
+      <path
+         d="M 0,0 3.92,1.792 0,3.584 Z"
+         fill="#0ea5e9"
+         id="pathIncoming70" />
+    </marker>
+  </defs>
+  <rect
+     width="1728"
+     height="1000"
+     fill="#ffffff"
+     id="rect13"
+     x="0"
+     y="0" />
+  <style
+     id="style13"><![CDATA[ text{font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR',sans-serif;} .st{font-size:13px;font-weight:700;} .nt{font-size:10.5px;fill:#1e293b;} .lg{font-size:12px;fill:#475569;} ]]></style>
+  <text
+     x="501.36493"
+     y="73.84095"
+     font-size="24px"
+     font-weight="700"
+     fill="#1e293b"
+     id="text13"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:33.3333px;font-family:'Malgun Gothic', 'Apple SD Gothic Neo', 'Noto Sans CJK KR', sans-serif;-inkscape-font-specification:'Malgun Gothic, Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#1e293b">산출물 의존 관계도 (Deliverable Dependency Map)</text>
+  <rect
+     x="59"
+     y="131"
+     width="162"
+     height="313"
+     rx="12"
+     fill="#e7f5ec"
+     stroke="#16a34a"
+     stroke-width="1.7"
+     id="rect14" />
+  <text
+     x="140"
+     y="149"
+     text-anchor="middle"
+     class="st"
+     fill="#16a34a"
+     id="text15"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">STEP 0 기준자료·범위</text>
+  <rect
+     x="289"
+     y="131"
+     width="347"
+     height="501"
+     rx="12"
+     fill="#e6f4f7"
+     stroke="#0891b2"
+     stroke-width="1.7"
+     id="rect15" />
+  <text
+     x="462.5"
+     y="149"
+     text-anchor="middle"
+     class="st"
+     fill="#0891b2"
+     id="text16"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">STEP 1 제품보안요구 (PSR)</text>
+  <rect
+     x="39"
+     y="691"
+     width="417"
+     height="236"
+     rx="12"
+     fill="#e9effd"
+     stroke="#2563eb"
+     stroke-width="1.7"
+     id="rect16" />
+  <text
+     x="141.10518"
+     y="919.68585"
+     text-anchor="middle"
+     class="st"
+     fill="#2563eb"
+     id="text17"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">STEP 2 IEC 62443 적용성·Gap</text>
+  <rect
+     x="494"
+     y="698"
+     width="507"
+     height="150"
+     rx="12"
+     fill="#edecfc"
+     stroke="#4f46e5"
+     stroke-width="1.7"
+     id="rect17" />
+  <text
+     x="709.9873"
+     y="840.1839"
+     text-anchor="middle"
+     class="st"
+     fill="#4f46e5"
+     id="text18"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">STEP 3 관리체계·SDL</text>
+  <rect
+     x="739"
+     y="136"
+     width="207"
+     height="131"
+     rx="12"
+     fill="#f1ebfd"
+     stroke="#7c3aed"
+     stroke-width="1.7"
+     id="rect18" />
+  <text
+     x="842.5"
+     y="154"
+     text-anchor="middle"
+     class="st"
+     fill="#7c3aed"
+     id="text19"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">STEP 4 초기 SAD</text>
+  <rect
+     x="714"
+     y="301"
+     width="302"
+     height="181"
+     rx="12"
+     fill="#f8e9fa"
+     stroke="#c026d3"
+     stroke-width="1.7"
+     id="rect19" />
+  <text
+     x="865"
+     y="319"
+     text-anchor="middle"
+     class="st"
+     fill="#c026d3"
+     id="text20"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">STEP 5 Register</text>
+  <rect
+     x="1104"
+     y="136"
+     width="157"
+     height="86"
+     rx="12"
+     fill="#fbe9f1"
+     stroke="#db2777"
+     stroke-width="1.7"
+     id="rect20" />
+  <text
+     x="1182.5"
+     y="154"
+     text-anchor="middle"
+     class="st"
+     fill="#db2777"
+     id="text21"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">STEP 6 예비 SL</text>
+  <rect
+     x="1094"
+     y="281"
+     width="202"
+     height="138"
+     rx="12"
+     fill="#fce8ec"
+     stroke="#e11d48"
+     stroke-width="1.7"
+     id="rect21" />
+  <text
+     x="1239.5573"
+     y="297.87198"
+     text-anchor="middle"
+     class="st"
+     fill="#e11d48"
+     id="text22"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">STEP 7 Threat/Risk</text>
+  <rect
+     x="1374"
+     y="251"
+     width="286"
+     height="168"
+     rx="12"
+     fill="#fceee6"
+     stroke="#ea580c"
+     stroke-width="1.7"
+     id="rect22" />
+  <text
+     x="1500"
+     y="269"
+     text-anchor="middle"
+     class="st"
+     fill="#ea580c"
+     id="text23"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">STEP 8 최종 SL 확정</text>
+  <rect
+     x="1099"
+     y="706"
+     width="237"
+     height="118"
+     rx="12"
+     fill="#f9f3e5"
+     stroke="#ca8a04"
+     stroke-width="1.7"
+     id="rect23" />
+  <text
+     x="1251.5"
+     y="724"
+     text-anchor="middle"
+     class="st"
+     fill="#ca8a04"
+     id="text24"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">STEP 9 SAD 보완·CRS</text>
+  <rect
+     x="1404"
+     y="681"
+     width="297"
+     height="208"
+     rx="12"
+     fill="#e6f4f3"
+     stroke="#0d9488"
+     stroke-width="1.7"
+     id="rect24" />
+  <text
+     x="1484.5"
+     y="699"
+     text-anchor="middle"
+     class="st"
+     fill="#0d9488"
+     id="text25"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">STEP 10 검증·증적</text>
+  <rect
+     x="1544.771"
+     y="490.65314"
+     width="152"
+     height="86"
+     rx="12"
+     fill="#eceef0"
+     stroke="#475569"
+     stroke-width="1.7"
+     id="rect25" />
+  <text
+     x="1620.771"
+     y="508.65314"
+     text-anchor="middle"
+     class="st"
+     fill="#475569"
+     id="text26"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">STEP 11 Baseline</text>
+  <path
+     d="m 143.5,195 v 21"
+     fill="none"
+     stroke="#16a34a"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar0)"
+     id="path26" />
+  <circle
+     cx="143.5"
+     cy="195"
+     r="2.3"
+     fill="#16a34a"
+     id="circle26" />
+  <path
+     d="m 143.5,250 v 21"
+     fill="none"
+     stroke="#16a34a"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar0)"
+     id="path27" />
+  <circle
+     cx="143.5"
+     cy="250"
+     r="2.3"
+     fill="#16a34a"
+     id="circle27" />
+  <path
+     d="m 143.5,313 v 23"
+     fill="none"
+     stroke="#16a34a"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar0)"
+     id="path28" />
+  <circle
+     cx="143.5"
+     cy="313"
+     r="2.3"
+     fill="#16a34a"
+     id="circle28" />
+  <path
+     d="m 143.5,378 v 18"
+     fill="none"
+     stroke="#16a34a"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar0)"
+     id="path29" />
+  <circle
+     cx="143.5"
+     cy="378"
+     r="2.3"
+     fill="#16a34a"
+     id="circle29" />
+  <path
+     d="m 205,292.5 h 44.5 v -112 H 395"
+     fill="none"
+     stroke="#16a34a"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar0)"
+     id="path30"
+     sodipodi:nodetypes="cccc" />
+  <circle
+     cx="205"
+     cy="292.5"
+     r="2.3"
+     fill="#16a34a"
+     id="circle30" />
+  <path
+     d="M 406.54985,195.09823 406.5,214.5"
+     fill="none"
+     stroke="#0891b2"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar1)"
+     id="path31"
+     sodipodi:nodetypes="cc" />
+  <circle
+     cx="406.48505"
+     cy="195.16441"
+     r="2.3"
+     fill="#0891b2"
+     id="circle31" />
+  <path
+     d="m 525,180.5 h 30.5 v 34"
+     fill="none"
+     stroke="#0891b2"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar1)"
+     id="path32"
+     sodipodi:nodetypes="ccc" />
+  <circle
+     cx="525"
+     cy="180.5"
+     r="2.3"
+     fill="#0891b2"
+     id="circle32" />
+  <path
+     d="m 549.5,300 v 16"
+     fill="none"
+     stroke="#0891b2"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar1)"
+     id="path34" />
+  <circle
+     cx="549.5"
+     cy="300"
+     r="2.3"
+     fill="#0891b2"
+     id="circle34" />
+  <path
+     d="m 549.17297,249.61641 v 16"
+     fill="none"
+     stroke="#0891b2"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar1-0)"
+     id="path34-8"
+     style="marker-end:url(#ar1-0)" />
+  <circle
+     cx="549.17297"
+     cy="249.61639"
+     r="2.3"
+     fill="#0891b2"
+     id="circle34-8" />
+  <path
+     d="M 615.12775,233.57304 626.5,233.5 v 151 l -9.77108,-0.1235"
+     fill="none"
+     stroke="#0891b2"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar1)"
+     id="path35"
+     sodipodi:nodetypes="cccc" />
+  <circle
+     cx="614.70471"
+     cy="233.50253"
+     r="2.3"
+     fill="#0891b2"
+     id="circle35" />
+  <path
+     d="m 548.5,350 v 16"
+     fill="none"
+     stroke="#0891b2"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar1)"
+     id="path36"
+     sodipodi:nodetypes="cc" />
+  <circle
+     cx="485.42752"
+     cy="333.84781"
+     r="2.3"
+     fill="#0891b2"
+     id="circle36" />
+  <path
+     d="m 549.5,400 v 16"
+     fill="none"
+     stroke="#0891b2"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar1)"
+     id="path37" />
+  <circle
+     cx="549.5"
+     cy="400"
+     r="2.3"
+     fill="#0891b2"
+     id="circle37" />
+  <path
+     d="m 549.5,450.5 v 38 H 525"
+     fill="none"
+     stroke="#0891b2"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar1)"
+     id="path38"
+     sodipodi:nodetypes="ccc" />
+  <circle
+     cx="549.60876"
+     cy="449.94833"
+     r="2.3"
+     fill="#0891b2"
+     id="circle38" />
+  <path
+     d="m 484.5,334 h -26 v 130"
+     fill="none"
+     stroke="#0891b2"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar1)"
+     id="path39"
+     sodipodi:nodetypes="ccc" />
+  <circle
+     cx="548.5"
+     cy="350"
+     r="2.3"
+     fill="#0891b2"
+     id="circle39" />
+  <path
+     d="M 458.5,508.5 V 526"
+     fill="none"
+     stroke="#0891b2"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar1)"
+     id="path40"
+     sodipodi:nodetypes="cc" />
+  <circle
+     cx="394.67447"
+     cy="488.47949"
+     fill="#0891b2"
+     id="circle40"
+     r="2.3" />
+  <path
+     d="m 395,544.5 h -13.5 v 30"
+     fill="none"
+     stroke="#0891b2"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar1)"
+     id="path41"
+     sodipodi:nodetypes="ccc" />
+  <circle
+     cx="395"
+     cy="544.5"
+     r="2.3"
+     fill="#0891b2"
+     id="circle41" />
+  <path
+     d="m 450,593.5 h 25"
+     fill="none"
+     stroke="#0891b2"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar1)"
+     id="path42" />
+  <circle
+     cx="450"
+     cy="593.5"
+     r="2.3"
+     fill="#0891b2"
+     id="circle42" />
+  <path
+     d="m 142.5,430 v 241.5 h 128 V 711"
+     fill="none"
+     stroke="#16a34a"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar0)"
+     id="path43"
+     sodipodi:nodetypes="cccc" />
+  <circle
+     cx="142.5"
+     cy="430"
+     r="2.3"
+     fill="#16a34a"
+     id="circle43" />
+  <path
+     d="m 353.5,618 v 35.5 h -63 V 709"
+     fill="none"
+     stroke="#0891b2"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar1)"
+     id="path44"
+     sodipodi:nodetypes="cccc" />
+  <circle
+     cx="353.5"
+     cy="618"
+     r="2.3"
+     fill="#0891b2"
+     id="circle44" />
+  <path
+     d="m 475,599.5 h -9.5 v 41 h -160 v 69"
+     fill="none"
+     stroke="#0891b2"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar1)"
+     id="path45"
+     sodipodi:nodetypes="ccccc" />
+  <circle
+     cx="475"
+     cy="599.5"
+     r="2.3"
+     fill="#0891b2"
+     id="circle45" />
+  <path
+     d="M 123.5,430 V 711"
+     fill="none"
+     stroke="#16a34a"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar0)"
+     id="path46"
+     sodipodi:nodetypes="cc" />
+  <circle
+     cx="123.5"
+     cy="430"
+     r="2.3"
+     fill="#16a34a"
+     id="circle46" />
+  <path
+     d="m 247.30119,753.24055 0.19881,7.29032 -131.96329,-0.32048 0.051,19.55986"
+     fill="none"
+     stroke="#2563eb"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar2)"
+     id="path47"
+     sodipodi:nodetypes="cccc" />
+  <circle
+     cx="247.16019"
+     cy="752.95856"
+     fill="#2563eb"
+     id="circle47"
+     r="2.3" />
+  <path
+     d="m 175,796.5 h 10.5 v -101 h 188 v 15"
+     fill="none"
+     stroke="#2563eb"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar2)"
+     id="path48"
+     sodipodi:nodetypes="ccccc" />
+  <circle
+     cx="175"
+     cy="796.5"
+     r="2.3"
+     fill="#2563eb"
+     id="circle48" />
+  <path
+     d="m 161.5,430 v 235.5 h 230 V 711"
+     fill="none"
+     stroke="#16a34a"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar0)"
+     id="path49"
+     sodipodi:nodetypes="cccc" />
+  <circle
+     cx="161.5"
+     cy="430"
+     r="2.3"
+     fill="#16a34a"
+     id="circle49" />
+  <path
+     d="m 394.5,488.5 h -362 v 383 h 21"
+     fill="none"
+     stroke="#0891b2"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar1)"
+     id="path50"
+     sodipodi:nodetypes="cccc" />
+  <circle
+     cx="458.5"
+     cy="508"
+     r="2.3"
+     fill="#0891b2"
+     id="circle50" />
+  <path
+     d="m 493.5,508 v 8.5 h 133 v 154 h -154 v 91 h -203 V 781"
+     fill="none"
+     stroke="#0891b2"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar1)"
+     id="path51"
+     sodipodi:nodetypes="cccccccc" />
+  <circle
+     cx="493.5"
+     cy="508"
+     r="2.3"
+     fill="#0891b2"
+     id="circle51" />
+  <path
+     d="m 402.5,618 v 39.5 h -377 v 180 h 244 V 851"
+     fill="none"
+     stroke="#0891b2"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar1)"
+     id="path52"
+     sodipodi:nodetypes="cccccc" />
+  <circle
+     cx="402.5"
+     cy="618"
+     r="2.3"
+     fill="#0891b2"
+     id="circle52" />
+  <path
+     d="m 330,733.5 h 5.5 v 64 h 9.5"
+     fill="none"
+     stroke="#2563eb"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar2)"
+     id="path53"
+     sodipodi:nodetypes="cccc" />
+  <circle
+     cx="330"
+     cy="733.5"
+     r="2.3"
+     fill="#2563eb"
+     id="circle53" />
+  <path
+     d="m 175,810.5 h 14.5 v -45 h 196 v 15"
+     fill="none"
+     stroke="#2563eb"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar2)"
+     id="path54"
+     sodipodi:nodetypes="ccccc" />
+  <circle
+     cx="175"
+     cy="810.5"
+     r="2.3"
+     fill="#2563eb"
+     id="circle54" />
+  <path
+     d="m 175,880.5 h 24.5 v 20 h 142 v -57 l 23.19873,-0.0585 0.18283,-26.96911"
+     fill="none"
+     stroke="#2563eb"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar2)"
+     id="path55"
+     sodipodi:nodetypes="ccccccc" />
+  <circle
+     cx="175"
+     cy="866.5"
+     r="2.3"
+     fill="#2563eb"
+     id="circle55" />
+  <path
+     d="m 300.10716,850.65736 0.22132,-13.55528 56.24577,-0.26443 -0.0751,-20.41548"
+     fill="none"
+     stroke="#2563eb"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar2)"
+     id="path56"
+     sodipodi:nodetypes="cccc" />
+  <circle
+     cx="300.17767"
+     cy="850.65735"
+     r="2.3"
+     fill="#2563eb"
+     id="circle56" />
+  <path
+     d="m 385.5,815 v 36"
+     fill="none"
+     stroke="#2563eb"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar2)"
+     id="path57" />
+  <circle
+     cx="385.5"
+     cy="815"
+     r="2.3"
+     fill="#2563eb"
+     id="circle57" />
+  <path
+     d="m 440.5,859.5 h 126 v -52"
+     fill="none"
+     stroke="#2563eb"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar2)"
+     id="path58"
+     sodipodi:nodetypes="ccc" />
+  <circle
+     cx="440.59824"
+     cy="859.34747"
+     r="2.3"
+     fill="#2563eb"
+     id="circle58" />
+  <path
+     d="m 440,877.5 h 503 v -131"
+     fill="none"
+     stroke="#2563eb"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar2)"
+     id="path59"
+     sodipodi:nodetypes="ccc" />
+  <circle
+     cx="439.75809"
+     cy="877.36621"
+     r="2.3"
+     fill="#2563eb"
+     id="circle59" />
+  <path
+     d="m 279.5,822.5 v 7 h 407 v -20"
+     fill="none"
+     stroke="#2563eb"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar2)"
+     id="path60"
+     sodipodi:nodetypes="cccc" />
+  <circle
+     cx="279.49557"
+     cy="822.57544"
+     r="2.3"
+     fill="#2563eb"
+     id="circle60" />
+  <path
+     d="m 440,868.5 h 192.5 l 0.1661,-121.97744"
+     fill="none"
+     stroke="#2563eb"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar2)"
+     id="path61"
+     sodipodi:nodetypes="ccc" />
+  <circle
+     cx="440"
+     cy="868.5"
+     r="2.3"
+     fill="#2563eb"
+     id="circle61" />
+  <path
+     d="m 390.5,885.5 v 11 h 390 v -148"
+     fill="none"
+     stroke="#2563eb"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar2)"
+     id="path62"
+     sodipodi:nodetypes="cccc" />
+  <circle
+     cx="390.44669"
+     cy="885.16547"
+     r="2.3"
+     fill="#2563eb"
+     id="circle62" />
+  <path
+     d="m 380.5,885.5 v 20 h 457 v -96"
+     fill="none"
+     stroke="#2563eb"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar2)"
+     id="path63"
+     sodipodi:nodetypes="cccc" />
+  <circle
+     cx="380.3765"
+     cy="885.06573"
+     r="2.3"
+     fill="#2563eb"
+     id="circle63" />
+  <path
+     d="m 395.5,851 v -12.5 h 91 v -196 h 224 v -428 h 84 V 200"
+     fill="none"
+     stroke="#2563eb"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar2)"
+     id="path64"
+     sodipodi:nodetypes="cccccccc" />
+  <circle
+     cx="395.5"
+     cy="851"
+     r="2.3"
+     fill="#2563eb"
+     id="circle64" />
+  <path
+     d="m 621.5,587.5 h 82 V 182.33305 L 754.5,182"
+     fill="none"
+     stroke="#0891b2"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar1)"
+     id="path65"
+     sodipodi:nodetypes="cccc" />
+  <circle
+     cx="619.99133"
+     cy="587.66547"
+     r="2.3"
+     fill="#0891b2"
+     id="circle65" />
+  <path
+     d="M 843.55612,200.24055 843.5,214.5"
+     fill="none"
+     stroke="#7c3aed"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar4)"
+     id="path66"
+     sodipodi:nodetypes="cc" />
+  <circle
+     cx="843.59296"
+     cy="199.54362"
+     r="2.3"
+     fill="#7c3aed"
+     id="circle66" />
+  <path
+     d="m 175,866.5 h 20.5 v -365 l 74.09085,-0.0997 -0.90325,-386.50148 413.927,-0.0408 -0.60299,118.23499 L 800,232.5"
+     fill="none"
+     stroke="#2563eb"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar2)"
+     id="path67"
+     sodipodi:nodetypes="cccccccc" />
+  <circle
+     cx="175"
+     cy="880.5"
+     r="2.3"
+     fill="#2563eb"
+     id="circle67" />
+  <path
+     d="m 205,411.5 h 54.5 v -287 h 417 v 231 H 730"
+     fill="none"
+     stroke="#16a34a"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar0)"
+     id="path68"
+     sodipodi:nodetypes="cccccc" />
+  <circle
+     cx="205"
+     cy="411.5"
+     r="2.3"
+     fill="#16a34a"
+     id="circle68" />
+  <path
+     d="M 780.5,200 V 330.5"
+     fill="none"
+     stroke="#7c3aed"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar4)"
+     id="path69"
+     sodipodi:nodetypes="cc" />
+  <circle
+     cx="780.487"
+     cy="200.28201"
+     r="2.3"
+     fill="#7c3aed"
+     id="circle69" />
+  <path
+     d="M 297.17177,780.4216 297.13254,770.5 H 480.54146 L 479.97744,657.87507 782,658.5 v -285"
+     fill="none"
+     stroke="#2563eb"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar2)"
+     id="path70"
+     sodipodi:nodetypes="cccccc" />
+  <circle
+     cx="297.29681"
+     cy="780.38916"
+     r="2.3"
+     fill="#2563eb"
+     id="circle70" />
+  <path
+     d="m 927.5,373 -0.19646,51.50443"
+     fill="none"
+     stroke="#c026d3"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar5)"
+     id="path71"
+     sodipodi:nodetypes="cc" />
+  <circle
+     cx="927.5"
+     cy="373"
+     r="2.3"
+     fill="#c026d3"
+     id="circle71" />
+  <path
+     d="m 748.5,764.5 v -180 h 144 V 468"
+     fill="none"
+     stroke="#4f46e5"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar3)"
+     id="path72"
+     sodipodi:nodetypes="cccc" />
+  <circle
+     cx="748.5"
+     cy="766"
+     r="2.3"
+     fill="#4f46e5"
+     id="circle72" />
+  <circle
+     cx="881.34357"
+     cy="808.11285"
+     r="2.3"
+     fill="#4f46e5"
+     id="circle72-4" />
+  <path
+     d="m 969.50148,330.89587 0.78052,-153.3719 148.5832,-0.1018"
+     fill="none"
+     stroke="#c026d3"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar5)"
+     id="path73"
+     sodipodi:nodetypes="ccc" />
+  <circle
+     cx="870"
+     cy="355.5"
+     r="2.3"
+     fill="#c026d3"
+     id="circle73" />
+  <path
+     d="m 960.5,330.34602 v -132 L 1120,197.5"
+     fill="none"
+     stroke="#c026d3"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar5)"
+     id="path74"
+     sodipodi:nodetypes="ccc" />
+  <circle
+     cx="960.23688"
+     cy="330.2197"
+     r="2.3"
+     fill="#c026d3"
+     id="circle74" />
+  <path
+     d="m 970,439.5 h 118.5 v -252 h 31.5"
+     fill="none"
+     stroke="#c026d3"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar5)"
+     id="path75"
+     sodipodi:nodetypes="cccc" />
+  <circle
+     cx="970"
+     cy="439.5"
+     r="2.3"
+     fill="#c026d3"
+     id="circle75" />
+  <path
+     d="m 620,597.5 h 528.5 v -242"
+     fill="none"
+     stroke="#0891b2"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar1)"
+     id="path76"
+     sodipodi:nodetypes="ccc" />
+  <circle
+     cx="620"
+     cy="597.5"
+     r="2.3"
+     fill="#0891b2"
+     id="circle76" />
+  <path
+     d="m 875,189.5 h 194.5 v 148 h 40.5"
+     fill="none"
+     stroke="#7c3aed"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar4)"
+     id="path77"
+     sodipodi:nodetypes="cccc" />
+  <circle
+     cx="875"
+     cy="189.5"
+     r="2.3"
+     fill="#7c3aed"
+     id="circle77" />
+  <path
+     d="M 1179.5,208 V 311"
+     fill="none"
+     stroke="#db2777"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar6)"
+     id="path78" />
+  <circle
+     cx="1179.5"
+     cy="208"
+     r="2.3"
+     fill="#db2777"
+     id="circle78" />
+  <path
+     d="m 1179.5,353 v 17.5"
+     fill="none"
+     stroke="#e11d48"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar7)"
+     id="path79"
+     sodipodi:nodetypes="cc" />
+  <circle
+     cx="1179.5"
+     cy="353"
+     r="2.3"
+     fill="#e11d48"
+     id="circle79" />
+  <path
+     d="m 1280,383.5 h 58.5 v -51 h 51.5"
+     fill="none"
+     stroke="#e11d48"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar7)"
+     id="path80"
+     sodipodi:nodetypes="cccc" />
+  <circle
+     cx="1280"
+     cy="383.5"
+     r="2.3"
+     fill="#e11d48"
+     id="circle80" />
+  <path
+     d="m 979.5,355.5 v 76 h 449 v -77"
+     fill="none"
+     stroke="#c026d3"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar5)"
+     id="path81"
+     sodipodi:nodetypes="cccc" />
+  <circle
+     cx="969.37878"
+     cy="330.27466"
+     r="2.3"
+     fill="#c026d3"
+     id="circle81" />
+  <circle
+     cx="979.61133"
+     cy="372.82339"
+     r="2.3"
+     fill="#c026d3"
+     id="circle81-5" />
+  <path
+     d="m 970,449.4472 h 471.5 v -95"
+     fill="none"
+     stroke="#c026d3"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar5)"
+     id="path82"
+     sodipodi:nodetypes="ccc" />
+  <circle
+     cx="970"
+     cy="449.4472"
+     r="2.3"
+     fill="#c026d3"
+     id="circle82" />
+  <path
+     d="M 1515.3973,334.5 H 1582.5 v -15"
+     fill="none"
+     stroke="#ea580c"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar8)"
+     id="path83"
+     sodipodi:nodetypes="ccc" />
+  <circle
+     cx="1515.0997"
+     cy="334.29764"
+     r="2.3"
+     fill="#ea580c"
+     id="circle83" />
+  <path
+     d="m 1515,341.5 h 7.5 v 29"
+     fill="none"
+     stroke="#ea580c"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar8)"
+     id="path84"
+     sodipodi:nodetypes="ccc" />
+  <circle
+     cx="1515"
+     cy="341.5"
+     r="2.3"
+     fill="#ea580c"
+     id="circle84" />
+  <path
+     d="m 1280,392.5 h 195"
+     fill="none"
+     stroke="#e11d48"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar7)"
+     id="path85"
+     sodipodi:nodetypes="cc" />
+  <circle
+     cx="1280"
+     cy="392.5"
+     r="2.3"
+     fill="#e11d48"
+     id="circle85" />
+  <path
+     d="M 1189.5,405 V 734.5"
+     fill="none"
+     stroke="#e11d48"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar7)"
+     id="path86"
+     sodipodi:nodetypes="cc" />
+  <circle
+     cx="1189.6331"
+     cy="404.71799"
+     r="2.3"
+     fill="#e11d48"
+     id="circle86" />
+  <path
+     d="m 1452.5,353 v 106.5 h -280 V 736"
+     fill="none"
+     stroke="#ea580c"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar8)"
+     id="path87"
+     sodipodi:nodetypes="cccc" />
+  <circle
+     cx="1452.5"
+     cy="353"
+     r="2.3"
+     fill="#ea580c"
+     id="circle87" />
+  <path
+     d="m 885.5,253 v 27.5 h 170 v 367 h 100 V 736"
+     fill="none"
+     stroke="#7c3aed"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar4)"
+     id="path88"
+     sodipodi:nodetypes="cccccc" />
+  <circle
+     cx="861.5"
+     cy="253"
+     r="2.3"
+     fill="#7c3aed"
+     id="circle88" />
+  <path
+     d="m 1176.3424,769.72843 0.061,18.77157 h 37.799"
+     fill="none"
+     stroke="#ca8a04"
+     stroke-width="1.7"
+     opacity="0.95"
+     marker-end="url(#ar9)"
+     id="path89"
+     sodipodi:nodetypes="ccc" />
+  <circle
+     cx="1176.1742"
+     cy="770.05396"
+     r="2.3"
+     fill="#ca8a04"
+     id="circle89" />
+  <path
+     d="M 372.5,885.16046 V 915.5 h 896 v -104"
+     fill="none"
+     stroke="#2563eb"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar2)"
+     id="path90"
+     sodipodi:nodetypes="cccc" />
+  <circle
+     cx="372.40012"
+     cy="885.08643"
+     r="2.3"
+     fill="#2563eb"
+     id="circle90" />
+  <path
+     d="m 440,726.5 h 24.5 v -63 h 592 v 133 H 1213"
+     fill="none"
+     stroke="#2563eb"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar2)"
+     id="path91"
+     sodipodi:nodetypes="cccccc" />
+  <circle
+     cx="440"
+     cy="726.5"
+     r="2.3"
+     fill="#2563eb"
+     id="circle91" />
+  <path
+     d="m 970,454.5 h 71.5 v 351 h 171.5997"
+     fill="none"
+     stroke="#c026d3"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar5)"
+     id="path92"
+     sodipodi:nodetypes="cccc" />
+  <circle
+     cx="970"
+     cy="454.5"
+     r="2.3"
+     fill="#c026d3"
+     id="circle92" />
+  <path
+     d="m 861.5,253 v 39.5 h 189 v 552 h 208 V 812"
+     fill="none"
+     stroke="#7c3aed"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar4)"
+     id="path93"
+     sodipodi:nodetypes="cccccc" />
+  <circle
+     cx="885.5"
+     cy="253"
+     r="2.3"
+     fill="#7c3aed"
+     id="circle93" />
+  <path
+     d="m 1320.5,781.5 h 272 v -28"
+     fill="none"
+     stroke="#ca8a04"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar9)"
+     id="path94"
+     sodipodi:nodetypes="ccc" />
+  <circle
+     cx="1319.4421"
+     cy="781.4079"
+     r="2.3"
+     fill="#ca8a04"
+     id="circle94" />
+  <circle
+     cx="1320.1151"
+     cy="788.37445"
+     r="2.3"
+     fill="#ca8a04"
+     id="circle94-7" />
+  <g
+     id="g195"
+     transform="translate(0,6)">
+    <path
+       d="m 1320,789.5 h 98.5"
+       fill="none"
+       stroke="#ca8a04"
+       stroke-width="1.3"
+       opacity="0.85"
+       marker-end="url(#ar9)"
+       id="path95"
+       sodipodi:nodetypes="cc" />
+    <circle
+       cx="1320"
+       cy="789.5"
+       r="2.3"
+       fill="#ca8a04"
+       id="circle95" />
+  </g>
+  <path
+     d="m 1320,788.5 h 72.5 v -55 h 27.5"
+     fill="none"
+     stroke="#ca8a04"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar9)"
+     id="path96"
+     sodipodi:nodetypes="cccc" />
+  <path
+     d="m 1535,798.5 h 35"
+     fill="none"
+     stroke="#0d9488"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar10)"
+     id="path97" />
+  <circle
+     cx="1535"
+     cy="798.5"
+     r="2.3"
+     fill="#0d9488"
+     id="circle97" />
+  <path
+     d="m 881.5,807.5 v 98 h 741 l -0.1994,-83.19941"
+     fill="none"
+     stroke="#4f46e5"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar3)"
+     id="path98"
+     sodipodi:nodetypes="cccc" />
+  <circle
+     cx="905"
+     cy="789.5"
+     r="2.3"
+     fill="#4f46e5"
+     id="circle98" />
+  <path
+     d="m 1627.5,753 v 18.5 h -77 V 841"
+     fill="none"
+     stroke="#0d9488"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar10)"
+     id="path99"
+     sodipodi:nodetypes="cccc" />
+  <circle
+     cx="1627.5"
+     cy="753"
+     r="2.3"
+     fill="#0d9488"
+     id="circle99" />
+  <path
+     d="M 1476.5,820.80207 V 848.5 h 23.5"
+     fill="none"
+     stroke="#0d9488"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar10)"
+     id="path100"
+     sodipodi:nodetypes="ccc" />
+  <circle
+     cx="1476.4733"
+     cy="820.57019"
+     r="2.3"
+     fill="#0d9488"
+     id="circle100" />
+  <path
+     d="m 1582.5,819.5 -0.1994,20.42243"
+     fill="none"
+     stroke="#0d9488"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar10)"
+     id="path101"
+     sodipodi:nodetypes="cc" />
+  <circle
+     cx="1582.3634"
+     cy="820.64923"
+     r="2.3"
+     fill="#0d9488"
+     id="circle101" />
+  <path
+     d="m 1277.5,809.5 v 57 H 1500"
+     fill="none"
+     stroke="#ca8a04"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar9)"
+     id="path102"
+     sodipodi:nodetypes="ccc" />
+  <circle
+     cx="1277.7251"
+     cy="810.27991"
+     r="2.3"
+     fill="#ca8a04"
+     id="circle102" />
+  <path
+     d="M 1559.3263,840.55608 V 604.69459 l 53.2961,0.60236 0.1678,-41.89283"
+     fill="none"
+     stroke="#0d9488"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar10)"
+     id="path103"
+     sodipodi:nodetypes="cccc" />
+  <circle
+     cx="1559.1089"
+     cy="840.46448"
+     r="2.3"
+     fill="#0d9488"
+     id="circle103" />
+  <path
+     d="m 1523.5443,403.60039 0.3319,131.31191 35.8858,-0.0974"
+     fill="none"
+     stroke="#ea580c"
+     stroke-width="1.7"
+     opacity="0.95"
+     marker-end="url(#ar8)"
+     id="path104"
+     sodipodi:nodetypes="ccc" />
+  <circle
+     cx="1523.3844"
+     cy="405.80249"
+     r="2.3"
+     fill="#ea580c"
+     id="circle104" />
+  <path
+     d="m 1165,390.5 h -125.5 v -210 H 877"
+     fill="none"
+     stroke="#dc2626"
+     stroke-width="1.5"
+     stroke-dasharray="5, 4"
+     marker-end="url(#arF)"
+     id="path105"
+     sodipodi:nodetypes="cccc" />
+  <circle
+     cx="1165"
+     cy="390.5"
+     r="2.5999999"
+     fill="#dc2626"
+     id="circle105" />
+  <path
+     d="M 1419.205,802.5705 1323.5,802.5"
+     fill="none"
+     stroke="#dc2626"
+     stroke-width="1.5"
+     stroke-dasharray="5, 4"
+     marker-end="url(#arF)"
+     id="path106"
+     sodipodi:nodetypes="cc" />
+  <circle
+     cx="1419.859"
+     cy="802.55756"
+     r="2.5999999"
+     fill="#dc2626"
+     id="circle106" />
+  <path
+     d="m 435,232.5 h 50"
+     fill="none"
+     stroke="#0891b2"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar1)"
+     id="path14" />
+  <path
+     d="m 382.5,258.5 v 25 H 485"
+     fill="none"
+     stroke="#0891b2"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar1)"
+     id="path15"
+     sodipodi:nodetypes="ccc" />
+  <path
+     d="m 375.5,259.5 v 122 H 485"
+     fill="none"
+     stroke="#0891b2"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar1)"
+     id="path16"
+     sodipodi:nodetypes="ccc" />
+  <circle
+     cx="382.75467"
+     cy="258.03033"
+     r="2.3"
+     fill="#0891b2"
+     id="circle16" />
+  <path
+     d="m 367.5,258 v 145.5 h 170 V 416"
+     fill="none"
+     stroke="#0891b2"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar1)"
+     id="path17"
+     sodipodi:nodetypes="cccc" />
+  <circle
+     cx="367.5"
+     cy="258.0"
+     r="2.3"
+     fill="#0891b2"
+     id="circle17" />
+  <path
+     d="m 360.5,259.5 v 151 h 84 V 466"
+     fill="none"
+     stroke="#0891b2"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar1)"
+     id="path18"
+     sodipodi:nodetypes="cccc" />
+  <circle
+     cx="360.30881"
+     cy="258.28201"
+     r="2.3"
+     fill="#0891b2"
+     id="circle18" />
+  <path
+     d="m 424.5,214.5 v -12 h 307 v 83 h 331 v 97 H 1165"
+     fill="none"
+     stroke="#0891b2"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar1)"
+     id="path19"
+     sodipodi:nodetypes="ccccccc" />
+  <circle
+     cx="435"
+     cy="232.5"
+     r="2.3"
+     fill="#0891b2"
+     id="circle19" />
+  <circle
+     cx="424.2637"
+     cy="215.2708"
+     r="2.3"
+     fill="#0891b2"
+     id="circle19-5" />
+  <circle
+     cx="417.35901"
+     cy="215.64929"
+     r="2.3"
+     fill="#0891b2"
+     id="circle19-6" />
+  <path
+     d="m 417.5,214.5 v -15 h 275 v 295 h 822 v -88"
+     fill="none"
+     stroke="#0891b2"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar1)"
+     id="path20"
+     sodipodi:nodetypes="cccccc" />
+  <circle
+     cx="375.42636"
+     cy="258.1799"
+     r="2.3"
+     fill="#0891b2"
+     id="circle20" />
+  <path
+     d="m 175,731.5 -39.5,-20 v -64 h 627 v -274"
+     fill="none"
+     stroke="#2563eb"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar2)"
+     id="path21"
+     sodipodi:nodetypes="ccccc" />
+  <path
+     d="m 159.5,711.5 v -26 h 1051 v -280"
+     fill="none"
+     stroke="#2563eb"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar2)"
+     id="path22"
+     sodipodi:nodetypes="cccc" />
+  <circle
+     cx="159.48956"
+     cy="710.7724"
+     r="2.3"
+     fill="#2563eb"
+     id="circle22" />
+  <path
+     d="m 150.5,711.5 v -204 h 127 v -399 h 852 l 0.1994,56.61299"
+     fill="none"
+     stroke="#2563eb"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar2)"
+     id="path23"
+     sodipodi:nodetypes="cccccc" />
+  <circle
+     cx="135.09589"
+     cy="710.50171"
+     r="2.3"
+     fill="#2563eb"
+     id="circle23" />
+  <circle
+     cx="150.57581"
+     cy="710.63727"
+     r="2.3"
+     fill="#2563eb"
+     id="circle23-4" />
+  <path
+     d="m 561.5,711.5 v -36 h 935 v -269"
+     fill="none"
+     stroke="#4f46e5"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar3)"
+     id="path24"
+     sodipodi:nodetypes="cccc" />
+  <circle
+     cx="573.05695"
+     cy="710.63141"
+     r="2.3"
+     fill="#4f46e5"
+     id="circle24" />
+  <path
+     d="m 572.5,710.5 v -30 h 746 v -138 h 242.3"
+     fill="none"
+     stroke="#4f46e5"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar3)"
+     id="path25"
+     sodipodi:nodetypes="ccccc" />
+  <circle
+     cx="561.14465"
+     cy="710.76141"
+     r="2.3"
+     fill="#4f46e5"
+     id="circle25" />
+  <path
+     d="m 576.5,805.5 v 96 h 659 v -89"
+     fill="none"
+     stroke="#4f46e5"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar3)"
+     id="path33"
+     sodipodi:nodetypes="cccc" />
+  <circle
+     cx="620.0"
+     cy="787.5"
+     r="2.3"
+     fill="#4f46e5"
+     id="circle33" />
+  <path
+     d="M 620.0,787.5 L 626.5,787.5 L 626.5,857.5 L 1500.0,857.5"
+     fill="none"
+     stroke="#4f46e5"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar3)"
+     id="path107" />
+  <circle
+     cx="576.14777"
+     cy="805.54852"
+     r="2.3"
+     fill="#4f46e5"
+     id="circle107" />
+  <path
+     d="m 962.5,745.5 v 119 h 285 v -52"
+     fill="none"
+     stroke="#4f46e5"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar3)"
+     id="path108"
+     sodipodi:nodetypes="cccc" />
+  <circle
+     cx="970.47662"
+     cy="745.6004"
+     r="2.3"
+     fill="#4f46e5"
+     id="circle108" />
+  <path
+     d="m 970.5,731.5 v 164 h 642 v -73.19646"
+     fill="none"
+     stroke="#4f46e5"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar3)"
+     id="path109"
+     sodipodi:nodetypes="cccc" />
+  <circle
+     cx="962.22784"
+     cy="745.74139"
+     r="2.3"
+     fill="#4f46e5"
+     id="circle109" />
+  <path
+     d="M 682.5,711 V 240.5 h 117.39587"
+     fill="none"
+     stroke="#4f46e5"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar3)"
+     id="path110"
+     sodipodi:nodetypes="ccc" />
+  <circle
+     cx="682.5"
+     cy="711.0"
+     r="2.3"
+     fill="#4f46e5"
+     id="circle110" />
+  <path
+     d="m 828.5,706.5 v -16 h 566 v 35 h 25.5"
+     fill="none"
+     stroke="#4f46e5"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar3)"
+     id="path111"
+     sodipodi:nodetypes="ccccc" />
+  <circle
+     cx="828.55231"
+     cy="705.75549"
+     r="2.3"
+     fill="#4f46e5"
+     id="circle111" />
+  <path
+     d="m 889.5,809.5 v 43 h 571 v -33"
+     fill="none"
+     stroke="#4f46e5"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar3)"
+     id="path112"
+     sodipodi:nodetypes="cccc" />
+  <circle
+     cx="889.92725"
+     cy="808.36859"
+     r="2.3"
+     fill="#4f46e5"
+     id="circle112" />
+  <path
+     d="m 440,873.5 h 28.5 l -0.80354,-219 H 773.5 v -168 h 427 v -80"
+     fill="none"
+     stroke="#2563eb"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar2)"
+     id="path113"
+     sodipodi:nodetypes="ccccccc" />
+  <circle
+     cx="440"
+     cy="873.5"
+     r="2.3"
+     fill="#2563eb"
+     id="circle113" />
+  <path
+     d="m 1613.5,319 v 147.5 h -302 v 308"
+     fill="none"
+     stroke="#ea580c"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar8)"
+     id="path114"
+     sodipodi:nodetypes="cccc" />
+  <circle
+     cx="1613.5951"
+     cy="319.0705"
+     r="2.3"
+     fill="#ea580c"
+     id="circle114" />
+  <path
+     d="m 1592.5,319.5 v 23 h -59 V 371"
+     fill="none"
+     stroke="#ea580c"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar8)"
+     id="path115"
+     sodipodi:nodetypes="cccc" />
+  <circle
+     cx="1592.3812"
+     cy="319.0705"
+     r="2.3"
+     fill="#ea580c"
+     id="circle115" />
+  <path
+     d="m 970,444.5 h 534.5 v -39"
+     fill="none"
+     stroke="#c026d3"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar5)"
+     id="path116"
+     sodipodi:nodetypes="ccc" />
+  <circle
+     cx="970.0"
+     cy="444.5"
+     r="2.3"
+     fill="#c026d3"
+     id="circle116" />
+  <path
+     d="m 970,458.5 h 62.5 v 452 h 600 v -89"
+     fill="none"
+     stroke="#c026d3"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar5)"
+     id="path117"
+     sodipodi:nodetypes="ccccc" />
+  <circle
+     cx="970.22949"
+     cy="459.01797"
+     r="2.3"
+     fill="#c026d3"
+     id="circle92-2" />
+  <path
+     d="m 280.33935,893.66508 0.025,17.83492 H 953 V 746.48703"
+     fill="none"
+     stroke="#2563eb"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar2)"
+     id="path118"
+     sodipodi:nodetypes="cccc" />
+  <circle
+     cx="280.44669"
+     cy="893.43506"
+     r="2.3"
+     fill="#2563eb"
+     id="circle118" />
+  <path
+     d="M 269.5,892.74676 V 920.5 h 1372 v -98"
+     fill="none"
+     stroke="#2563eb"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar2)"
+     id="path119"
+     sodipodi:nodetypes="cccc" />
+  <circle
+     cx="269.36829"
+     cy="893.07361"
+     r="2.3"
+     fill="#2563eb"
+     id="circle119" />
+  <path
+     d="M 1487.5,711.0 L 1487.5,703.5 L 1620.5,703.5 L 1620.5,562.7"
+     fill="none"
+     stroke="#0d9488"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar10)"
+     id="path120" />
+  <circle
+     cx="1487.5"
+     cy="711.0"
+     r="2.3"
+     fill="#0d9488"
+     id="circle120" />
+  <path
+     d="m 794.5,331 v -56.5 h 365 v -65"
+     fill="none"
+     stroke="#c026d3"
+     stroke-width="1.3"
+     opacity="0.85"
+     marker-end="url(#ar5)"
+     id="path121"
+     sodipodi:nodetypes="cccc" />
+  <circle
+     cx="794.5"
+     cy="331.0"
+     r="2.3"
+     fill="#c026d3"
+     id="circle121" />
+  <rect
+     x="75"
+     y="161"
+     width="130"
+     height="34"
+     rx="9"
+     fill="#ffffff"
+     stroke="#16a34a"
+     stroke-width="1.3"
+     id="rect106" />
+  <text
+     x="140"
+     y="182"
+     text-anchor="middle"
+     class="nt"
+     id="text106"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">1.진행 가이드</text>
+  <rect
+     x="75"
+     y="216"
+     width="130"
+     height="34"
+     rx="9"
+     fill="#ffffff"
+     stroke="#16a34a"
+     stroke-width="1.3"
+     id="rect107" />
+  <text
+     x="140"
+     y="237"
+     text-anchor="middle"
+     class="nt"
+     id="text107"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">2.입력자료 사용 기준</text>
+  <rect
+     x="75"
+     y="271"
+     width="130"
+     height="42"
+     rx="9"
+     fill="#ffffff"
+     stroke="#16a34a"
+     stroke-width="1.3"
+     id="rect108" />
+  <text
+     x="140"
+     y="290"
+     text-anchor="middle"
+     class="nt"
+     id="text108"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">3.Source Document</text>
+  <text
+     x="140"
+     y="303"
+     text-anchor="middle"
+     class="nt"
+     id="text109"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">Register</text>
+  <rect
+     x="75"
+     y="336"
+     width="130"
+     height="42"
+     rx="9"
+     fill="#ffffff"
+     stroke="#16a34a"
+     stroke-width="1.3"
+     id="rect109" />
+  <text
+     x="140"
+     y="355"
+     text-anchor="middle"
+     class="nt"
+     id="text110"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">4.Scope / Exclusion</text>
+  <text
+     x="140"
+     y="368"
+     text-anchor="middle"
+     class="nt"
+     id="text111"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">/ TBD</text>
+  <rect
+     x="75"
+     y="396"
+     width="130"
+     height="34"
+     rx="9"
+     fill="#ffffff"
+     stroke="#16a34a"
+     stroke-width="1.3"
+     id="rect111" />
+  <text
+     x="140"
+     y="417"
+     text-anchor="middle"
+     class="nt"
+     id="text112"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">5.SuC Definition</text>
+  <rect
+     x="395"
+     y="161"
+     width="130"
+     height="34"
+     rx="9"
+     fill="#ffffff"
+     stroke="#0891b2"
+     stroke-width="1.3"
+     id="rect112" />
+  <text
+     x="460"
+     y="182"
+     text-anchor="middle"
+     class="nt"
+     id="text113"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">6.Product Context</text>
+  <rect
+     x="305"
+     y="216"
+     width="130"
+     height="42"
+     rx="9"
+     fill="#ffffff"
+     stroke="#0891b2"
+     stroke-width="1.3"
+     id="rect113" />
+  <text
+     x="370"
+     y="235"
+     text-anchor="middle"
+     class="nt"
+     id="text114"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">6-1.Open Item</text>
+  <text
+     x="370"
+     y="248"
+     text-anchor="middle"
+     class="nt"
+     id="text115"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">Master Register</text>
+  <rect
+     x="485"
+     y="216"
+     width="130"
+     height="34"
+     rx="9"
+     fill="#ffffff"
+     stroke="#0891b2"
+     stroke-width="1.3"
+     id="rect115" />
+  <text
+     x="550"
+     y="237"
+     text-anchor="middle"
+     class="nt"
+     id="text116"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">7.External Entity</text>
+  <rect
+     x="485"
+     y="266"
+     width="130"
+     height="34"
+     rx="9"
+     fill="#ffffff"
+     stroke="#0891b2"
+     stroke-width="1.3"
+     id="rect116" />
+  <text
+     x="550"
+     y="287"
+     text-anchor="middle"
+     class="nt"
+     id="text117"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">8.Product Boundary</text>
+  <rect
+     x="485"
+     y="318"
+     width="130"
+     height="32"
+     rx="9"
+     fill="#ffffff"
+     stroke="#0891b2"
+     stroke-width="1.3"
+     id="rect117" />
+  <text
+     x="550"
+     y="337"
+     text-anchor="middle"
+     class="nt"
+     id="text118"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">9.Internal Domain</text>
+  <rect
+     x="485"
+     y="368"
+     width="130"
+     height="32"
+     rx="9"
+     fill="#ffffff"
+     stroke="#0891b2"
+     stroke-width="1.3"
+     id="rect118" />
+  <text
+     x="550"
+     y="387"
+     text-anchor="middle"
+     class="nt"
+     id="text119"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">10.Data Flow</text>
+  <rect
+     x="485"
+     y="416"
+     width="130"
+     height="34"
+     rx="9"
+     fill="#ffffff"
+     stroke="#0891b2"
+     stroke-width="1.3"
+     id="rect119" />
+  <text
+     x="550"
+     y="437"
+     text-anchor="middle"
+     class="nt"
+     id="text120"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">11.Trust Boundary</text>
+  <rect
+     x="395"
+     y="466"
+     width="130"
+     height="42"
+     rx="9"
+     fill="#ffffff"
+     stroke="#0891b2"
+     stroke-width="1.3"
+     id="rect120" />
+  <text
+     x="460"
+     y="485"
+     text-anchor="middle"
+     class="nt"
+     id="text121"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">12.Asset/Comp/</text>
+  <text
+     x="460"
+     y="498"
+     text-anchor="middle"
+     class="nt"
+     id="text122"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">Interface</text>
+  <rect
+     x="395"
+     y="526"
+     width="130"
+     height="34"
+     rx="9"
+     fill="#ffffff"
+     stroke="#0891b2"
+     stroke-width="1.3"
+     id="rect122" />
+  <text
+     x="460"
+     y="547"
+     text-anchor="middle"
+     class="nt"
+     id="text123"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">13.Protection Need</text>
+  <rect
+     x="305"
+     y="576"
+     width="145"
+     height="42"
+     rx="9"
+     fill="#ffffff"
+     stroke="#0891b2"
+     stroke-width="1.3"
+     id="rect123" />
+  <text
+     x="377.5"
+     y="595"
+     text-anchor="middle"
+     class="nt"
+     id="text124"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">14.PSR Candidate</text>
+  <text
+     x="377.5"
+     y="608"
+     text-anchor="middle"
+     class="nt"
+     id="text125"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">Register (01_14-A)</text>
+  <rect
+     x="475"
+     y="576"
+     width="145"
+     height="42"
+     rx="9"
+     fill="#ffffff"
+     stroke="#0891b2"
+     stroke-width="1.3"
+     id="rect125" />
+  <text
+     x="547.5"
+     y="595"
+     text-anchor="middle"
+     class="nt"
+     id="text126"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">14.Atomic PSR</text>
+  <text
+     x="547.5"
+     y="608"
+     text-anchor="middle"
+     class="nt"
+     id="text127"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">Register (01_14-B)</text>
+  <rect
+     x="205"
+     y="711"
+     width="125"
+     height="42"
+     rx="9"
+     fill="#ffffff"
+     stroke="#2563eb"
+     stroke-width="1.3"
+     id="rect127" />
+  <text
+     x="267.5"
+     y="730"
+     text-anchor="middle"
+     class="nt"
+     id="text128"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">Applicability</text>
+  <text
+     x="267.5"
+     y="743"
+     text-anchor="middle"
+     class="nt"
+     id="text129"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">Matrix</text>
+  <rect
+     x="55"
+     y="711"
+     width="120"
+     height="34"
+     rx="9"
+     fill="#ffffff"
+     stroke="#2563eb"
+     stroke-width="1.3"
+     id="rect129" />
+  <text
+     x="115"
+     y="732"
+     text-anchor="middle"
+     class="nt"
+     id="text130"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">3-2 Risk Basis</text>
+  <rect
+     x="55"
+     y="781"
+     width="120"
+     height="42"
+     rx="9"
+     fill="#ffffff"
+     stroke="#2563eb"
+     stroke-width="1.3"
+     id="rect130" />
+  <text
+     x="115"
+     y="800"
+     text-anchor="middle"
+     class="nt"
+     id="text131"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">3-3 FR/SR</text>
+  <text
+     x="115"
+     y="813"
+     text-anchor="middle"
+     class="nt"
+     id="text132"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">Coverage</text>
+  <rect
+     x="345"
+     y="711"
+     width="95"
+     height="34"
+     rx="9"
+     fill="#ffffff"
+     stroke="#2563eb"
+     stroke-width="1.3"
+     id="rect132" />
+  <text
+     x="392.5"
+     y="732"
+     text-anchor="middle"
+     class="nt"
+     id="text133"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">ZCR Candidate</text>
+  <rect
+     x="55"
+     y="851"
+     width="120"
+     height="42"
+     rx="9"
+     fill="#ffffff"
+     stroke="#2563eb"
+     stroke-width="1.3"
+     id="rect133" />
+  <text
+     x="115"
+     y="870"
+     text-anchor="middle"
+     class="nt"
+     id="text134"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">4-2 Component</text>
+  <text
+     x="115"
+     y="883"
+     text-anchor="middle"
+     class="nt"
+     id="text135"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">CR Coverage</text>
+  <rect
+     x="205"
+     y="781"
+     width="125"
+     height="42"
+     rx="9"
+     fill="#ffffff"
+     stroke="#2563eb"
+     stroke-width="1.3"
+     id="rect135" />
+  <text
+     x="267.5"
+     y="800"
+     text-anchor="middle"
+     class="nt"
+     id="text136"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">Component Type</text>
+  <text
+     x="267.5"
+     y="813"
+     text-anchor="middle"
+     class="nt"
+     id="text137"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">Applicability</text>
+  <rect
+     x="205"
+     y="851"
+     width="125"
+     height="42"
+     rx="9"
+     fill="#ffffff"
+     stroke="#2563eb"
+     stroke-width="1.3"
+     id="rect137" />
+  <text
+     x="267.5"
+     y="870"
+     text-anchor="middle"
+     class="nt"
+     id="text138"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">4-1 Practice</text>
+  <text
+     x="267.5"
+     y="883"
+     text-anchor="middle"
+     class="nt"
+     id="text139"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">Coverage</text>
+  <rect
+     x="345"
+     y="781"
+     width="95"
+     height="34"
+     rx="9"
+     fill="#ffffff"
+     stroke="#2563eb"
+     stroke-width="1.3"
+     id="rect139" />
+  <text
+     x="392.5"
+     y="802"
+     text-anchor="middle"
+     class="nt"
+     id="text140"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">Mapping Table</text>
+  <rect
+     x="345"
+     y="851"
+     width="95"
+     height="34"
+     rx="9"
+     fill="#ffffff"
+     stroke="#2563eb"
+     stroke-width="1.3"
+     id="rect140" />
+  <text
+     x="392.5"
+     y="872"
+     text-anchor="middle"
+     class="nt"
+     id="text141"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">Gap List</text>
+  <rect
+     x="510"
+     y="771"
+     width="110"
+     height="34"
+     rx="9"
+     fill="#ffffff"
+     stroke="#4f46e5"
+     stroke-width="1.3"
+     id="rect141" />
+  <text
+     x="565"
+     y="792"
+     text-anchor="middle"
+     class="nt"
+     id="text142"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">Req Mgmt Rule</text>
+  <rect
+     x="895"
+     y="711"
+     width="90"
+     height="34"
+     rx="9"
+     fill="#ffffff"
+     stroke="#4f46e5"
+     stroke-width="1.3"
+     id="rect142" />
+  <text
+     x="940"
+     y="732"
+     text-anchor="middle"
+     class="nt"
+     id="text143"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">SDL Rule</text>
+  <rect
+     x="635"
+     y="766"
+     width="120"
+     height="42"
+     rx="9"
+     fill="#ffffff"
+     stroke="#4f46e5"
+     stroke-width="1.3"
+     id="rect143" />
+  <text
+     x="695"
+     y="785"
+     text-anchor="middle"
+     class="nt"
+     id="text144"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">Vendor Evidence</text>
+  <text
+     x="695"
+     y="798"
+     text-anchor="middle"
+     class="nt"
+     id="text145"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">Rule</text>
+  <rect
+     x="625"
+     y="711"
+     width="120"
+     height="34"
+     rx="9"
+     fill="#ffffff"
+     stroke="#4f46e5"
+     stroke-width="1.3"
+     id="rect145" />
+  <text
+     x="685"
+     y="732"
+     text-anchor="middle"
+     class="nt"
+     id="text146"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">Crypto/Key Rule</text>
+  <rect
+     x="760"
+     y="706"
+     width="120"
+     height="42"
+     rx="9"
+     fill="#ffffff"
+     stroke="#4f46e5"
+     stroke-width="1.3"
+     id="rect146" />
+  <text
+     x="820"
+     y="725"
+     text-anchor="middle"
+     class="nt"
+     id="text147"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">Security</text>
+  <text
+     x="820"
+     y="738"
+     text-anchor="middle"
+     class="nt"
+     id="text148"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">Guideline Rule</text>
+  <rect
+     x="787"
+     y="766"
+     width="130"
+     height="42"
+     rx="9"
+     fill="#ffffff"
+     stroke="#4f46e5"
+     stroke-width="1.3"
+     id="rect148" />
+  <text
+     x="852"
+     y="785"
+     text-anchor="middle"
+     class="nt"
+     id="text149"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">Evidence</text>
+  <text
+     x="852"
+     y="798"
+     text-anchor="middle"
+     class="nt"
+     id="text150"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">Acceptance Rule</text>
+  <rect
+     x="510"
+     y="711"
+     width="100"
+     height="34"
+     rx="9"
+     fill="#ffffff"
+     stroke="#4f46e5"
+     stroke-width="1.3"
+     id="rect150" />
+  <text
+     x="560"
+     y="732"
+     text-anchor="middle"
+     class="nt"
+     id="text151"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">RACI Matrix</text>
+  <rect
+     x="755"
+     y="166"
+     width="120"
+     height="34"
+     rx="9"
+     fill="#ffffff"
+     stroke="#7c3aed"
+     stroke-width="1.3"
+     id="rect151" />
+  <text
+     x="815"
+     y="187"
+     text-anchor="middle"
+     class="nt"
+     id="text152"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">Initial SAD</text>
+  <rect
+     x="800"
+     y="215"
+     width="130"
+     height="38"
+     rx="9"
+     fill="#ffffff"
+     stroke="#7c3aed"
+     stroke-width="1.3"
+     id="rect152" />
+  <text
+     x="865"
+     y="230"
+     text-anchor="middle"
+     class="nt"
+     id="text153"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">Crypto/Key</text>
+  <text
+     x="865"
+     y="243"
+     text-anchor="middle"
+     class="nt"
+     id="text154"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">Mgmt Profile</text>
+  <rect
+     x="730"
+     y="331"
+     width="128"
+     height="42"
+     rx="9"
+     fill="#ffffff"
+     stroke="#c026d3"
+     stroke-width="1.3"
+     id="rect154" />
+  <text
+     x="800"
+     y="350"
+     text-anchor="middle"
+     class="nt"
+     id="text155"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">Zone/Conduit</text>
+  <text
+     x="800"
+     y="363"
+     text-anchor="middle"
+     class="nt"
+     id="text156"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">+ ACI Register</text>
+  <rect
+     x="868"
+     y="331"
+     width="128"
+     height="42"
+     rx="9"
+     fill="#ffffff"
+     stroke="#c026d3"
+     stroke-width="1.3"
+     id="rect156" />
+  <text
+     x="930"
+     y="350"
+     text-anchor="middle"
+     class="nt"
+     id="text157"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">Component Type</text>
+  <text
+     x="930"
+     y="363"
+     text-anchor="middle"
+     class="nt"
+     id="text158"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">Register</text>
+  <rect
+     x="810"
+     y="426"
+     width="160"
+     height="42"
+     rx="9"
+     fill="#ffffff"
+     stroke="#c026d3"
+     stroke-width="1.3"
+     id="rect158" />
+  <text
+     x="890"
+     y="445"
+     text-anchor="middle"
+     class="nt"
+     id="text159"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">Inherited Capability</text>
+  <text
+     x="890"
+     y="458"
+     text-anchor="middle"
+     class="nt"
+     id="text160"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">/ Vendor Evidence</text>
+  <rect
+     x="1120"
+     y="166"
+     width="125"
+     height="42"
+     rx="9"
+     fill="#ffffff"
+     stroke="#db2777"
+     stroke-width="1.3"
+     id="rect160" />
+  <text
+     x="1182.5"
+     y="185"
+     text-anchor="middle"
+     class="nt"
+     id="text161"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">Preliminary</text>
+  <text
+     x="1182.5"
+     y="198"
+     text-anchor="middle"
+     class="nt"
+     id="text162"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">SL Table</text>
+  <rect
+     x="1110"
+     y="311"
+     width="135"
+     height="42"
+     rx="9"
+     fill="#ffffff"
+     stroke="#e11d48"
+     stroke-width="1.3"
+     id="rect162" />
+  <text
+     x="1177.5"
+     y="330"
+     text-anchor="middle"
+     class="nt"
+     id="text163"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">Threat Scenario</text>
+  <text
+     x="1177.5"
+     y="343"
+     text-anchor="middle"
+     class="nt"
+     id="text164"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">Register</text>
+  <rect
+     x="1165"
+     y="371"
+     width="115"
+     height="34"
+     rx="9"
+     fill="#ffffff"
+     stroke="#e11d48"
+     stroke-width="1.3"
+     id="rect164" />
+  <text
+     x="1222.5"
+     y="392"
+     text-anchor="middle"
+     class="nt"
+     id="text165"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">Risk Register</text>
+  <rect
+     x="1390"
+     y="311"
+     width="125"
+     height="42"
+     rx="9"
+     fill="#ffffff"
+     stroke="#ea580c"
+     stroke-width="1.3"
+     id="rect165" />
+  <text
+     x="1452.5"
+     y="330"
+     text-anchor="middle"
+     class="nt"
+     id="text166"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">Final SL-T /</text>
+  <text
+     x="1452.5"
+     y="343"
+     text-anchor="middle"
+     class="nt"
+     id="text167"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">SL-C(Sys/Comp)</text>
+  <rect
+     x="1525"
+     y="277"
+     width="115"
+     height="42"
+     rx="9"
+     fill="#ffffff"
+     stroke="#ea580c"
+     stroke-width="1.3"
+     id="rect167" />
+  <text
+     x="1582.5"
+     y="296"
+     text-anchor="middle"
+     class="nt"
+     id="text168"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">Compensating</text>
+  <text
+     x="1582.5"
+     y="309"
+     text-anchor="middle"
+     class="nt"
+     id="text169"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">Control</text>
+  <rect
+     x="1475"
+     y="371"
+     width="115"
+     height="34"
+     rx="9"
+     fill="#ffffff"
+     stroke="#ea580c"
+     stroke-width="1.3"
+     id="rect169" />
+  <text
+     x="1532.5"
+     y="392"
+     text-anchor="middle"
+     class="nt"
+     id="text170"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">Decision Log</text>
+  <rect
+     x="1115"
+     y="736"
+     width="120"
+     height="34"
+     rx="9"
+     fill="#ffffff"
+     stroke="#ca8a04"
+     stroke-width="1.3"
+     id="rect170" />
+  <text
+     x="1175"
+     y="757"
+     text-anchor="middle"
+     class="nt"
+     id="text171"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">Updated SAD</text>
+  <rect
+     x="1215"
+     y="776"
+     width="105"
+     height="34"
+     rx="9"
+     fill="#ffffff"
+     stroke="#ca8a04"
+     stroke-width="1.3"
+     id="rect171" />
+  <text
+     x="1267.5"
+     y="797"
+     text-anchor="middle"
+     class="nt"
+     id="text172"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">CRS (6종)</text>
+  <rect
+     x="1570"
+     y="711"
+     width="115"
+     height="42"
+     rx="9"
+     fill="#ffffff"
+     stroke="#0d9488"
+     stroke-width="1.3"
+     id="rect172" />
+  <text
+     x="1627.5"
+     y="730"
+     text-anchor="middle"
+     class="nt"
+     id="text173"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">Execution</text>
+  <text
+     x="1627.5"
+     y="743"
+     text-anchor="middle"
+     class="nt"
+     id="text174"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">Package</text>
+  <rect
+     x="1420"
+     y="711"
+     width="135"
+     height="42"
+     rx="9"
+     fill="#ffffff"
+     stroke="#0d9488"
+     stroke-width="1.3"
+     id="rect174" />
+  <text
+     x="1487.5"
+     y="730"
+     text-anchor="middle"
+     class="nt"
+     id="text175"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">Security Guideline</text>
+  <text
+     x="1487.5"
+     y="743"
+     text-anchor="middle"
+     class="nt"
+     id="text176"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">Package</text>
+  <rect
+     x="1420"
+     y="786"
+     width="115"
+     height="34"
+     rx="9"
+     fill="#ffffff"
+     stroke="#0d9488"
+     stroke-width="1.3"
+     id="rect176" />
+  <text
+     x="1477.5"
+     y="807"
+     text-anchor="middle"
+     class="nt"
+     id="text177"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">TC Register</text>
+  <rect
+     x="1570"
+     y="786"
+     width="115"
+     height="34"
+     rx="9"
+     fill="#ffffff"
+     stroke="#0d9488"
+     stroke-width="1.3"
+     id="rect177" />
+  <text
+     x="1627.5"
+     y="807"
+     text-anchor="middle"
+     class="nt"
+     id="text178"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">Evidence Register</text>
+  <rect
+     x="1500"
+     y="841"
+     width="100"
+     height="34"
+     rx="9"
+     fill="#ffffff"
+     stroke="#0d9488"
+     stroke-width="1.3"
+     id="rect178" />
+  <text
+     x="1550"
+     y="862"
+     text-anchor="middle"
+     class="nt"
+     id="text179"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">RTM</text>
+  <rect
+     x="1560.771"
+     y="520.65314"
+     width="120"
+     height="42"
+     rx="9"
+     fill="#ffffff"
+     stroke="#475569"
+     stroke-width="1.3"
+     id="rect179" />
+  <text
+     x="1620.771"
+     y="539.65314"
+     text-anchor="middle"
+     class="nt"
+     id="text180"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">Baseline</text>
+  <text
+     x="1620.771"
+     y="552.65314"
+     text-anchor="middle"
+     class="nt"
+     id="text181"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:11px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">Package</text>
+  <text
+     x="1620.771"
+     y="574.65314"
+     text-anchor="middle"
+     class="lg"
+     id="text181a"
+     style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:9px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#475569">Decision Log 포함</text>
+  <circle
+     cx="46"
+     cy="972"
+     r="2.5999999"
+     fill="#64748b"
+     id="circle181"
+     style="font-variation-settings:'wght' 700" />
+  <line
+     x1="50"
+     y1="972"
+     x2="84"
+     y2="972"
+     stroke="#64748b"
+     stroke-width="1.3"
+     marker-end="url(#ar2)"
+     id="line181"
+     style="font-variation-settings:'wght' 700" />
+  <text
+     x="92"
+     y="976"
+     class="lg"
+     id="text182"
+     style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:13.33333333px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, @wght=700';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;font-variation-settings:'wght' 700">선행 → 후속 의존 (●=출발 산출물, ▶=도착 산출물) · 색 = 출발 STEP</text>
+  <line
+     x1="640"
+     y1="972"
+     x2="674"
+     y2="972"
+     stroke="#dc2626"
+     stroke-width="1.5"
+     stroke-dasharray="5, 4"
+     marker-end="url(#arF)"
+     id="line182"
+     style="font-variation-settings:'wght' 700" />
+  <text
+     x="682"
+     y="976"
+     class="lg"
+     id="text183"
+     style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:13.33333333px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, @wght=700';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;font-variation-settings:'wght' 700">반복 보완 루프</text>
+  <rect
+     x="820"
+     y="964"
+     width="13"
+     height="13"
+     rx="3"
+     fill="#16a34a"
+     id="rect183"
+     style="font-variation-settings:'wght' 700" />
+  <text
+     x="837"
+     y="976"
+     class="lg"
+     id="text184"
+     style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:13.33333333px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, @wght=700';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;font-variation-settings:'wght' 700">0</text>
+  <rect
+     x="862"
+     y="964"
+     width="13"
+     height="13"
+     rx="3"
+     fill="#0891b2"
+     id="rect184"
+     style="font-variation-settings:'wght' 700" />
+  <text
+     x="879"
+     y="976"
+     class="lg"
+     id="text185"
+     style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:13.33333333px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, @wght=700';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;font-variation-settings:'wght' 700">1</text>
+  <rect
+     x="904"
+     y="964"
+     width="13"
+     height="13"
+     rx="3"
+     fill="#2563eb"
+     id="rect185"
+     style="font-variation-settings:'wght' 700" />
+  <text
+     x="921"
+     y="976"
+     class="lg"
+     id="text186"
+     style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:13.33333333px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, @wght=700';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;font-variation-settings:'wght' 700">2</text>
+  <rect
+     x="946"
+     y="964"
+     width="13"
+     height="13"
+     rx="3"
+     fill="#4f46e5"
+     id="rect186"
+     style="font-variation-settings:'wght' 700" />
+  <text
+     x="963"
+     y="976"
+     class="lg"
+     id="text187"
+     style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:13.33333333px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, @wght=700';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;font-variation-settings:'wght' 700">3</text>
+  <rect
+     x="988"
+     y="964"
+     width="13"
+     height="13"
+     rx="3"
+     fill="#7c3aed"
+     id="rect187"
+     style="font-variation-settings:'wght' 700" />
+  <text
+     x="1005"
+     y="976"
+     class="lg"
+     id="text188"
+     style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:13.33333333px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, @wght=700';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;font-variation-settings:'wght' 700">4</text>
+  <rect
+     x="1030"
+     y="964"
+     width="13"
+     height="13"
+     rx="3"
+     fill="#c026d3"
+     id="rect188"
+     style="font-variation-settings:'wght' 700" />
+  <text
+     x="1047"
+     y="976"
+     class="lg"
+     id="text189"
+     style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:13.33333333px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, @wght=700';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;font-variation-settings:'wght' 700">5</text>
+  <rect
+     x="1072"
+     y="964"
+     width="13"
+     height="13"
+     rx="3"
+     fill="#db2777"
+     id="rect189"
+     style="font-variation-settings:'wght' 700" />
+  <text
+     x="1089"
+     y="976"
+     class="lg"
+     id="text190"
+     style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:13.33333333px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, @wght=700';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;font-variation-settings:'wght' 700">6</text>
+  <rect
+     x="1114"
+     y="964"
+     width="13"
+     height="13"
+     rx="3"
+     fill="#e11d48"
+     id="rect190"
+     style="font-variation-settings:'wght' 700" />
+  <text
+     x="1131"
+     y="976"
+     class="lg"
+     id="text191"
+     style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:13.33333333px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, @wght=700';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;font-variation-settings:'wght' 700">7</text>
+  <rect
+     x="1156"
+     y="964"
+     width="13"
+     height="13"
+     rx="3"
+     fill="#ea580c"
+     id="rect191"
+     style="font-variation-settings:'wght' 700" />
+  <text
+     x="1173"
+     y="976"
+     class="lg"
+     id="text192"
+     style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:13.33333333px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, @wght=700';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;font-variation-settings:'wght' 700">8</text>
+  <rect
+     x="1198"
+     y="964"
+     width="13"
+     height="13"
+     rx="3"
+     fill="#ca8a04"
+     id="rect192"
+     style="font-variation-settings:'wght' 700" />
+  <text
+     x="1215"
+     y="976"
+     class="lg"
+     id="text193"
+     style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:13.33333333px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, @wght=700';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;font-variation-settings:'wght' 700">9</text>
+  <rect
+     x="1240"
+     y="964"
+     width="13"
+     height="13"
+     rx="3"
+     fill="#0d9488"
+     id="rect193"
+     style="font-variation-settings:'wght' 700" />
+  <text
+     x="1257"
+     y="976"
+     class="lg"
+     id="text194"
+     style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:13.33333333px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, @wght=700';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;font-variation-settings:'wght' 700">10</text>
+  <rect
+     x="1282"
+     y="964"
+     width="13"
+     height="13"
+     rx="3"
+     fill="#475569"
+     id="rect194"
+     style="font-variation-settings:'wght' 700" />
+  <text
+     x="1299"
+     y="976"
+     class="lg"
+     id="text195"
+     style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:13.33333333px;font-family:'Noto Sans KR';-inkscape-font-specification:'Noto Sans KR, @wght=700';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;font-variation-settings:'wght' 700">11</text>
+</svg>
+
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const svg = document.getElementById('diagramSvg');
+      const statusEl = document.getElementById('status');
+      const incomingToggle = document.getElementById('incomingToggle');
+      const SVG_NS = 'http://www.w3.org/2000/svg';
+
+      const stepContainerIds = new Set([
+        'rect14', 'rect15', 'rect16', 'rect17', 'rect18', 'rect19',
+        'rect20', 'rect21', 'rect22', 'rect23', 'rect24', 'rect25'
+      ]);
+
+      const cleanLabel = (s) => (s || '').replace(/\s+/g, ' ').trim();
+      const num = (el, attr) => parseFloat(el.getAttribute(attr) || '0');
+
+      function rectBox(rect) {
+        return {
+          x: num(rect, 'x'),
+          y: num(rect, 'y'),
+          w: num(rect, 'width'),
+          h: num(rect, 'height'),
+        };
+      }
+
+      function pointRectDistance(p, b) {
+        const dx = Math.max(b.x - p.x, 0, p.x - (b.x + b.w));
+        const dy = Math.max(b.y - p.y, 0, p.y - (b.y + b.h));
+        return Math.sqrt(dx * dx + dy * dy);
+      }
+
+      function pointInsideRect(p, b) {
+        return p.x >= b.x && p.x <= b.x + b.w && p.y >= b.y && p.y <= b.y + b.h;
+      }
+
+      function textPoint(text) {
+        return { x: num(text, 'x'), y: num(text, 'y') };
+      }
+
+      const allTexts = Array.from(svg.querySelectorAll('text'));
+      const allRects = Array.from(svg.querySelectorAll('rect'));
+      const allCircles = Array.from(svg.querySelectorAll('circle'));
+      const allPaths = Array.from(svg.querySelectorAll('path')).filter(p => p.hasAttribute('marker-end'));
+
+      const actionNodes = allRects
+        .filter(rect => {
+          const id = rect.id;
+          const b = rectBox(rect);
+          if (!id || id === 'rect13') return false;
+          if (stepContainerIds.has(id)) return false;
+          if (b.w < 60 || b.h < 25) return false;
+          return true;
+        })
+        .map(rect => {
+          const b = rectBox(rect);
+          const labels = allTexts.filter(t => {
+            const p = textPoint(t);
+            return p.x >= b.x - 2 && p.x <= b.x + b.w + 2 && p.y >= b.y - 3 && p.y <= b.y + b.h + 18;
+          });
+          const label = cleanLabel(labels.map(t => t.textContent).join(' '));
+          rect.classList.add('interactive-node');
+          return { rect, box: b, labels, id: rect.id, label };
+        });
+
+      const stepNodes = allRects
+        .filter(rect => stepContainerIds.has(rect.id))
+        .map(rect => {
+          const b = rectBox(rect);
+          const labels = allTexts.filter(t => {
+            const p = textPoint(t);
+            return p.x >= b.x - 2 && p.x <= b.x + b.w + 2 && p.y >= b.y - 3 && p.y <= b.y + 26;
+          });
+          const label = cleanLabel(labels.map(t => t.textContent).join(' '));
+          const children = actionNodes.filter(n => {
+            const c = { x: n.box.x + n.box.w / 2, y: n.box.y + n.box.h / 2 };
+            return pointInsideRect(c, b);
+          });
+          rect.classList.add('step-container');
+          return { rect, box: b, labels, id: rect.id, label, children };
+        });
+
+      function nearestActionNode(point, threshold = 58) {
+        let best = null;
+        let bestDistance = Infinity;
+        for (const node of actionNodes) {
+          const d = pointRectDistance(point, node.box);
+          if (d < bestDistance) {
+            best = node;
+            bestDistance = d;
+          }
+        }
+        return bestDistance <= threshold ? best : null;
+      }
+
+      const defs = svg.querySelector('defs');
+      const markerCache = new Map();
+
+      function nodeStrokeColor(node, fallback = '#dc2626') {
+        if (!node || !node.rect) return fallback;
+        return node.rect.getAttribute('stroke') || getComputedStyle(node.rect).stroke || fallback;
+      }
+
+      function normalizeColor(color, fallback = '#dc2626') {
+        if (!color) return fallback;
+        const trimmed = String(color).trim();
+        if (/^#[0-9a-fA-F]{3}$/.test(trimmed)) {
+          return '#' + trimmed.slice(1).split('').map(ch => ch + ch).join('');
+        }
+        if (/^#[0-9a-fA-F]{6}$/.test(trimmed)) return trimmed;
+        const rgb = trimmed.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
+        if (rgb) {
+          return '#' + [rgb[1], rgb[2], rgb[3]].map(v => Math.max(0, Math.min(255, Number(v))).toString(16).padStart(2, '0')).join('');
+        }
+        return fallback;
+      }
+
+      function rgbaFromHex(color, alpha = 0.5) {
+        const hex = normalizeColor(color).replace('#', '');
+        const r = parseInt(hex.slice(0, 2), 16);
+        const g = parseInt(hex.slice(2, 4), 16);
+        const b = parseInt(hex.slice(4, 6), 16);
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+      }
+
+      function markerForColor(color, role) {
+        const normalized = normalizeColor(color, role === 'incoming' ? '#0ea5e9' : '#dc2626');
+        const key = `${role}-${normalized}`;
+        if (markerCache.has(key)) return markerCache.get(key);
+
+        const isIncoming = role === 'incoming';
+        const id = `arDyn_${role}_${normalized.replace('#', '')}`;
+        const marker = document.createElementNS(SVG_NS, 'marker');
+        marker.setAttribute('id', id);
+        marker.setAttribute('markerWidth', isIncoming ? '3.92' : '4.48');
+        marker.setAttribute('markerHeight', isIncoming ? '3.92' : '4.48');
+        marker.setAttribute('refX', isIncoming ? '3.56' : '4.08');
+        marker.setAttribute('refY', isIncoming ? '1.792' : '2.048');
+        marker.setAttribute('orient', 'auto');
+        marker.setAttribute('markerUnits', 'strokeWidth');
+
+        const arrow = document.createElementNS(SVG_NS, 'path');
+        arrow.setAttribute('d', isIncoming ? 'M 0,0 3.92,1.792 0,3.584 Z' : 'M 0,0 4.48,2.048 0,4.096 Z');
+        arrow.setAttribute('fill', normalized);
+        marker.appendChild(arrow);
+        defs.appendChild(marker);
+
+        const ref = `url(#${id})`;
+        markerCache.set(key, ref);
+        return ref;
+      }
+
+      function edgeDots(edge) {
+        const result = [];
+        for (const c of allCircles) {
+          const cx = num(c, 'cx'), cy = num(c, 'cy');
+          const d0 = Math.hypot(cx - edge.start.x, cy - edge.start.y);
+          const d1 = Math.hypot(cx - edge.end.x, cy - edge.end.y);
+          if (d0 <= 16 || d1 <= 8) result.push(c);
+        }
+        return result;
+      }
+
+      const edges = allPaths.map(path => {
+        let start = null;
+        let end = null;
+        try {
+          const len = path.getTotalLength();
+          const s = path.getPointAtLength(0);
+          const e = path.getPointAtLength(len);
+          start = { x: s.x, y: s.y };
+          end = { x: e.x, y: e.y };
+        } catch (e) {
+          return null;
+        }
+        const source = nearestActionNode(start);
+        const target = nearestActionNode(end);
+        const edge = {
+          path,
+          start,
+          end,
+          source,
+          target,
+          dots: [],
+          originalMarkerEnd: path.getAttribute('marker-end') || ''
+        };
+        edge.dots = edgeDots(edge);
+        return edge;
+      }).filter(Boolean);
+
+      const sourceIndex = new Map();
+      const targetIndex = new Map();
+      for (const edge of edges) {
+        if (edge.source) {
+          if (!sourceIndex.has(edge.source.id)) sourceIndex.set(edge.source.id, []);
+          sourceIndex.get(edge.source.id).push(edge);
+        }
+        if (edge.target) {
+          if (!targetIndex.has(edge.target.id)) targetIndex.set(edge.target.id, []);
+          targetIndex.get(edge.target.id).push(edge);
+        }
+      }
+
+      function clearClasses() {
+        for (const el of [...allRects, ...allTexts, ...allPaths, ...allCircles]) {
+          el.classList.remove(
+            'dimmed', 'dimmed-weak',
+            'node-source', 'node-target', 'node-incoming',
+            'label-source', 'label-target', 'label-incoming',
+            'edge-focus', 'edge-incoming', 'dot-focus', 'dot-incoming'
+          );
+        }
+        for (const edge of edges) {
+          edge.path.setAttribute('marker-end', edge.originalMarkerEnd);
+          edge.path.style.removeProperty('--edge-highlight');
+          edge.path.style.removeProperty('--edge-filter');
+        }
+        for (const c of allCircles) {
+          c.style.removeProperty('--edge-highlight');
+          c.style.removeProperty('--edge-filter');
+        }
+        statusEl.textContent = '대기 중';
+      }
+
+      function dimDiagram() {
+        for (const edge of edges) edge.path.classList.add('dimmed');
+        for (const c of allCircles) c.classList.add('dimmed');
+        for (const node of actionNodes) {
+          node.rect.classList.add('dimmed-weak');
+          for (const t of node.labels) t.classList.add('dimmed-weak');
+        }
+        for (const step of stepNodes) {
+          step.rect.classList.add('dimmed-weak');
+          for (const t of step.labels) t.classList.add('dimmed-weak');
+        }
+      }
+
+      function markNode(node, role) {
+        if (!node) return;
+        node.rect.classList.remove('dimmed', 'dimmed-weak');
+        node.rect.classList.add(role === 'source' ? 'node-source' : role === 'incoming' ? 'node-incoming' : 'node-target');
+        for (const t of node.labels) {
+          t.classList.remove('dimmed', 'dimmed-weak');
+          t.classList.add(role === 'source' ? 'label-source' : role === 'incoming' ? 'label-incoming' : 'label-target');
+        }
+      }
+
+      function markStep(step) {
+        step.rect.classList.remove('dimmed', 'dimmed-weak');
+        step.rect.classList.add('node-source');
+        for (const t of step.labels) {
+          t.classList.remove('dimmed', 'dimmed-weak');
+          t.classList.add('label-source');
+        }
+      }
+
+      function markEdge(edge, role, color) {
+        const highlightColor = normalizeColor(color, role === 'incoming' ? '#0ea5e9' : '#dc2626');
+        const highlightFilter = `drop-shadow(0 0 ${role === 'incoming' ? '3px' : '4px'} ${rgbaFromHex(highlightColor, role === 'incoming' ? 0.45 : 0.55)})`;
+
+        edge.path.classList.remove('dimmed', 'dimmed-weak');
+        edge.path.classList.add(role === 'incoming' ? 'edge-incoming' : 'edge-focus');
+        edge.path.style.setProperty('--edge-highlight', highlightColor);
+        edge.path.style.setProperty('--edge-filter', highlightFilter);
+        edge.path.setAttribute('marker-end', markerForColor(highlightColor, role));
+        for (const c of edge.dots) {
+          c.classList.remove('dimmed', 'dimmed-weak');
+          c.classList.add(role === 'incoming' ? 'dot-incoming' : 'dot-focus');
+          c.style.setProperty('--edge-highlight', highlightColor);
+          c.style.setProperty('--edge-filter', highlightFilter);
+        }
+      }
+
+      function focusActionNode(node) {
+        clearClasses();
+        dimDiagram();
+        markNode(node, 'source');
+
+        const outgoing = sourceIndex.get(node.id) || [];
+        const incoming = incomingToggle.checked ? (targetIndex.get(node.id) || []) : [];
+        const targets = new Map();
+        const sources = new Map();
+
+        const selectedColor = nodeStrokeColor(node);
+        for (const edge of outgoing) {
+          markEdge(edge, 'outgoing', selectedColor);
+          if (edge.target) targets.set(edge.target.id, edge.target);
+        }
+        for (const edge of incoming) {
+          markEdge(edge, 'incoming', nodeStrokeColor(edge.source, selectedColor));
+          if (edge.source) sources.set(edge.source.id, edge.source);
+        }
+        for (const target of targets.values()) markNode(target, 'target');
+        for (const source of sources.values()) markNode(source, 'incoming');
+
+        const targetLabels = Array.from(targets.values()).map(n => n.label).filter(Boolean);
+        const incomingText = incomingToggle.checked && sources.size
+          ? ` · 입력 ${sources.size}개`
+          : '';
+        statusEl.textContent = `${node.label || node.id} → ${targetLabels.length ? targetLabels.join(', ') : '직접 목적지 없음'}${incomingText}`;
+      }
+
+      function focusStep(step) {
+        clearClasses();
+        dimDiagram();
+        markStep(step);
+
+        const outgoingEdges = [];
+        const targetMap = new Map();
+        for (const child of step.children) {
+          markNode(child, 'source');
+          const out = sourceIndex.get(child.id) || [];
+          for (const edge of out) {
+            outgoingEdges.push(edge);
+            markEdge(edge, 'outgoing', nodeStrokeColor(child, nodeStrokeColor(step)));
+            if (edge.target) targetMap.set(edge.target.id, edge.target);
+          }
+        }
+        for (const target of targetMap.values()) markNode(target, 'target');
+
+        statusEl.textContent = `${step.label || step.id} · 하위 산출물 ${step.children.length}개 · 출력 화살표 ${outgoingEdges.length}개 · 목적지 ${targetMap.size}개`;
+      }
+
+      function makeHitRect(node, kind, focusFn) {
+        const pad = kind === 'step' ? 0 : 5;
+        const hit = document.createElementNS(SVG_NS, 'rect');
+        hit.setAttribute('x', String(node.box.x - pad));
+        hit.setAttribute('y', String(node.box.y - pad));
+        hit.setAttribute('width', String(node.box.w + pad * 2));
+        hit.setAttribute('height', String(node.box.h + pad * 2));
+        hit.setAttribute('rx', kind === 'step' ? '12' : '8');
+        hit.setAttribute('ry', kind === 'step' ? '12' : '8');
+        hit.setAttribute('class', `hover-hit hover-hit-${kind}`);
+        hit.setAttribute('tabindex', '0');
+        hit.setAttribute('aria-label', node.label || node.id);
+        hit.addEventListener('mouseenter', () => focusFn(node));
+        hit.addEventListener('focus', () => focusFn(node));
+        hit.addEventListener('mouseleave', (event) => {
+          const next = event.relatedTarget;
+          if (!(next instanceof Element) || !next.classList.contains('hover-hit')) clearClasses();
+        });
+        hit.addEventListener('blur', clearClasses);
+        return hit;
+      }
+
+      const hoverLayer = document.createElementNS(SVG_NS, 'g');
+      hoverLayer.setAttribute('id', 'stableHoverLayer');
+      hoverLayer.setAttribute('class', 'hover-layer');
+      svg.appendChild(hoverLayer);
+
+      // Step hit zones are appended first. Smaller action-node hit zones are appended later,
+      // so action nodes win when a child box overlaps a step container.
+      for (const step of stepNodes) hoverLayer.appendChild(makeHitRect(step, 'step', focusStep));
+      for (const node of actionNodes) hoverLayer.appendChild(makeHitRect(node, 'node', focusActionNode));
+
+      incomingToggle.addEventListener('change', () => clearClasses());
+      svg.addEventListener('mouseleave', clearClasses);
+
+      clearClasses();
+    })();
+  </script>
+</body>
+</html>
